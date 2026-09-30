@@ -1,0 +1,5 @@
+interface:
+  display_name: "Planner"
+  short_description: "Resolve a persistent map of planning decisions"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,89 @@
+name: lit
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  linux-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - run: go test -count=1 -race ./...
+      - run: go vet ./...
+      - run: go build -o ./bin/ ./cmd/lit-server ./cmd/lit
+  cross-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          export GOOS="${TARGET%/*}" GOARCH="${TARGET#*/}" CGO_ENABLED=0
+          go build -trimpath -o ./bin/ ./cmd/lit
+          if [[ "$GOOS" == linux ]]; then
+            go build -trimpath -o ./bin/ ./cmd/lit-server
+          fi
+  release-archives:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux-tests, cross-build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - shell: bash
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]
+          mkdir dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            export GOOS="${target%/*}" GOARCH="${target#*/}" CGO_ENABLED=0
+            destination="dist/${GOOS}-${GOARCH}"
+            mkdir "$destination"
+            go build -trimpath -ldflags "-X github.com/nerdwave-nick/nerdwave-workflows/internal/protocol.ReleaseVersion=$RELEASE_VERSION" -o "$destination/" ./cmd/lit
+            cp docs/installation.md "$destination/INSTALL.md"
+            if [[ "$GOOS" == linux ]]; then
+              go build -trimpath -ldflags "-X github.com/nerdwave-nick/nerdwave-workflows/internal/protocol.ReleaseVersion=$RELEASE_VERSION" -o "$destination/" ./cmd/lit-server
+              cp packaging/lit.service.in "$destination/lit.service.in"
+            fi
+            archive="lit-${RELEASE_VERSION}-${GOOS}-${GOARCH}"
+            if [[ "$GOOS" == windows ]]; then
+              (cd "$destination" && zip "../$archive.zip" lit.exe INSTALL.md)
+            elif [[ "$GOOS" == linux ]]; then
+              tar -czf "dist/$archive.tar.gz" -C "$destination" lit-server lit INSTALL.md lit.service.in
+            else
+              tar -czf "dist/$archive.tar.gz" -C "$destination" lit INSTALL.md
+            fi
+          done
+          (cd dist && sha256sum *.tar.gz *.zip > SHA256SUMS)
+      - run: go test -count=1 ./packaging
+        env:
+          LIT_ARCHIVE_DIR: ${{ github.workspace }}/dist
+          LIT_ARCHIVE_VERSION: ${{ github.ref_name }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lit-${{ github.ref_name }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/SHA256SUMS
+          if-no-files-found: error

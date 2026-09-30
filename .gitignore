@@ -1,0 +1,8 @@
+/dist/
+__pycache__/
+*.pyc
+
+# Local planning notes and recorded development sessions
+/.scratch/
+/internal/workflow-skills/tests/
+/docs/development/evidence/

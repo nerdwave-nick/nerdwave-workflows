@@ -1,0 +1,279 @@
+# Building and installing lit
+
+The service supports Linux amd64/arm64 with local filesystem storage. The client
+supports Linux amd64/arm64, macOS amd64/arm64, and Windows amd64. Linux behavior
+is tested; cross-compilation does not demonstrate native macOS/Windows behavior.
+Python is not required to build, install, or run the binaries and workflow skills.
+
+## Standard Go build and install
+
+Install Go matching `go.mod` (1.24 or later). From the repository root:
+
+```sh
+go build -o ./bin/ ./cmd/lit-server ./cmd/lit  # Linux: create both executables
+go install ./cmd/lit-server ./cmd/lit         # Linux: install checkout versions
+```
+
+On macOS or Windows, build/install only `./cmd/lit`. Separate commands such as
+`go build ./cmd/lit` also work and leave the executable in the current directory.
+Installation uses `GOBIN`, or `GOPATH/bin` when unset (normally `$HOME/go/bin`).
+Check `go env GOBIN GOPATH` and add the appropriate directory to PATH yourself;
+installation does not edit your shell profile.
+
+Once this module has been published and is accessible, installation without a
+checkout uses an explicit version query:
+
+```sh
+go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit@latest
+# Linux service, if needed:
+go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-server@latest
+```
+
+Replace `latest` with a published tag to pin a version. Remote publication and
+installation availability have not been verified; these commands describe the
+supported Go interface, not an already published release.
+
+## Install embedded workflow skills
+
+The installed CLI contains the fifteen workflow skills and their instruction
+template. Setup is offline and needs no source checkout or tracker connection:
+
+```sh
+lit setup-skills --scope local --agent both
+lit setup-skills --scope user --agent codex
+lit setup-skills --scope custom --path /path/to/project --agent claude
+```
+
+Both `--scope` and `--agent` are required. Agent values are `codex`, `claude`, or
+`both`. Local scope uses the current working directory, including a worktree;
+user scope uses the user's home directory. Custom scope requires `--path` pointing
+to the **parent containing `.codex` and/or `.claude`**, not either host directory
+itself. `--path` is rejected for local/user scope. Setup does not walk to a Git
+root or redirect using vendor configuration environment variables.
+
+Setup manages files under the selected host directories, preserving unrelated
+content. Rerun it after a CLI upgrade to update owned skills. Unmanaged collisions
+and local edits are errors, not permission to overwrite. Both-agent setup preflights
+both destinations before writing; an unexpected filesystem failure can leave one
+host updated, since the two hosts are separate transactions. Correct the reported
+problem and rerun for safe recovery. Setup does not start the service, establish
+tracker identity, or enable paid consultations. Setup writes a JSON installation
+receipt; it does not accept `--format`. If writing that receipt fails, it exits
+nonzero and reports that skills were installed. The completed installation stays
+in place; the output error does not roll it back. See the installed lit skill's host
+reference for explicit session setup.
+
+## Release archives
+
+CI cross-builds seven binaries across five targets: Linux amd64/arm64 archives
+contain `lit-server` and `lit`; macOS amd64/arm64 and Windows amd64 archives contain
+only `lit` (`lit.exe` on Windows). All archives contain `INSTALL.md`; Linux
+archives also contain the optional `lit.service.in` template. Skills are embedded
+in the client, so no separate installer or Python program is included.
+
+Pull requests run Go race tests, vet, and cross-builds. Version tags
+(`vMAJOR.MINOR.PATCH`, optionally `-PRERELEASE`) additionally produce five archives
+and `SHA256SUMS` as GitHub Actions artifacts. CI uses ordinary Go commands and
+shell archive utilities; it does not create GitHub Releases. Publishing remains
+an explicit separate action. CI embeds the release identifier in `lit-server --version`
+and `lit version`; source builds without that override report `dev`.
+
+Verify checksums before extracting: `sha256sum -c SHA256SUMS` on Linux,
+`shasum -a 256 -c SHA256SUMS` on macOS, or compare PowerShell
+`Get-FileHash .\lit-v0.1.0-windows-amd64.zip -Algorithm SHA256` with its checksum
+entry. Download all listed archives for a full checksum check, or select the
+entry matching your archive. Copy extracted binaries to a directory on PATH.
+No custom build or binary installation tool is necessary.
+
+## Start and stop explicitly
+
+On Linux:
+
+```sh
+lit-server
+```
+
+The initial service accepts only a loopback IP listener, such as
+`127.0.0.1:7411` or `[::1]:7411`. Wildcard/public IP addresses and hostnames
+(including `localhost`) are rejected. Remote hosting is a future design goal,
+not a supported listener mode in this delivery.
+
+The process runs in the foreground. Stop it with Ctrl-C or SIGTERM. Shutdown
+allows active work up to thirty seconds. Logs go to stderr; record contents are
+not dumped. An occupied port fails without selecting another port. CLI commands
+do not start the service. Use `lit --help` for the installed command surface.
+
+Default configuration: `${XDG_CONFIG_HOME:-$HOME/.config}/lit-server/config.json`.
+Default data: `${XDG_DATA_HOME:-$HOME/.local/share}/lit-server`. Relative XDG values are
+ignored in favor of HOME defaults. Missing default configuration uses defaults;
+explicitly selecting a missing file is an error. An optional JSON file is:
+
+```json
+{"schema_version": 1, "data_dir": "/home/alice/.local/share/lit-server", "listen": "127.0.0.1:7411"}
+```
+
+Use absolute paths in configuration. Precedence is command flags, environment,
+JSON, defaults:
+
+| Flag | Environment | JSON field |
+| --- | --- | --- |
+| `--config` | `LIT_CONFIG_FILE` | selects the file |
+| `--data-dir` | `LIT_DATA_DIR` | `data_dir` |
+| `--listen` | `LIT_LISTEN` | `listen` |
+
+Changes require an explicit restart. Invalid/unknown configuration fields and
+unsupported format versions fail clearly. First explicit startup initializes an
+empty store under exclusive ownership; populated damaged stores do not gain a
+fabricated identity. Keep storage together and preserve it when replacing binaries.
+The client uses separate private state. `LIT_STATE_DIR` overrides these defaults:
+
+| Platform | Client state directory |
+| --- | --- |
+| Linux | `${XDG_STATE_HOME:-$HOME/.local/state}/lit` |
+| macOS | `~/Library/Application Support/lit` |
+| Windows | `%LOCALAPPDATA%\lit` |
+
+Workflow records default to the `local` subdirectory of each platform's client
+state directory above. `LIT_WORKFLOW_STATE_DIR` overrides that location independently
+of `LIT_STATE_DIR`. Neither location is the service data directory.
+
+## Connect a client
+
+With `lit-server` running on its default listener:
+
+```sh
+lit connect --session poc-human --actor-name Alex --actor-kind human
+lit projects list --session poc-human
+```
+
+Logical session selection is `--session NAME` > `LIT_SESSION`. An explicitly
+supplied empty `--session` is invalid; omit the flag to use the fallback. With neither,
+`lit connect` creates a fresh isolated client under a random
+`throwaway-<UUID>` name. The response shows **Logical session** in CLI/Markdown
+and `items[0].logical_session` in JSON. Reuse that complete name with `--session`
+on later calls (or set `LIT_SESSION`); other tracker commands require a session.
+No session is automatically selected for the shell, and “throwaway” does not mean
+auto-deleted: the mapping remains available for deliberate reuse. Explicit
+`--session default` still resumes an existing legacy mapping. `--client-id UUID`
+can explicitly attach a new logical name to an existing client instead of
+registering a fresh client. `version`, help/completion, and local
+`transactions status` do not require a selected logical session.
+
+If registration succeeds but saving the local mapping fails, the
+`local_state_error` includes `logical_session`, `client_id`, `service_id`, and
+`endpoint` in its JSON `error.details`, and prints a recovery command. Repair
+the reported local filesystem problem, then reconnect using that session name,
+client ID, and endpoint to retain the registered client instead of creating another.
+
+Client endpoint precedence is `--endpoint` > `LIT_ENDPOINT` > the selected
+session's remembered endpoint > `http://127.0.0.1:7411`. A first local connection
+therefore needs no endpoint flag. Remote connections can use
+`--endpoint https://tracker.example.com`; saved remote sessions keep that endpoint
+unless explicitly overridden. Invalid selected endpoints are rejected without
+falling back, and a changed service identity is still rejected as `wrong_service`.
+The client never starts the service or falls back after a connection failure.
+
+`workflow-session fresh` and `workflow-session subagent` use `--endpoint`, then
+`LIT_ENDPOINT`, then the same loopback default. `resume`, `reconcile`, and `run`
+keep the endpoint and identity saved in their runtime association, even when the
+shell's `LIT_ENDPOINT` changes.
+
+## Optional systemd user service
+
+The checked-in `packaging/lit.service.in` (also in Linux archives) is a template,
+not an installed unit. To opt into service operation, copy it to
+`${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/lit.service` and edit it manually:
+
+- Replace `@EXEC_START@` with the absolute path to your installed `lit-server`,
+  for example `/home/alice/go/bin/lit-server`. Quote executable paths
+  containing spaces with double quotes using systemd unit syntax.
+- Remove `@ENVIRONMENT@`, or replace it with explicit `Environment=` lines for
+  the configuration/data settings you want the service to use.
+- Review configuration and permissions. A user manager may have different
+  environment variables than your shell, so make custom paths explicit. An
+  explicitly selected configuration file must already exist before startup.
+
+The unit allows thirty seconds of graceful shutdown plus five seconds for exit.
+Once reviewed, choose service operation explicitly:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user start lit.service
+systemctl --user status lit.service
+journalctl --user -u lit.service
+systemctl --user stop lit.service
+```
+
+Login-time enablement is a separate `systemctl --user enable lit.service`
+decision. No persistent service, lingering, or machine-wide configuration is
+installed or enabled automatically.
+
+## Manual updates
+
+Stop the foreground service or user service before replacing its executable.
+Run `go install` again for the chosen source/version, or verify and extract the
+chosen archive and copy its binaries. Rerun `lit setup-skills` with the same
+scope/agent/path selection to update the installed skill bundle. Review any
+reported local edits before proceeding. Explicitly restart the service afterward.
+Service identity and records remain in the existing data directory. Unsupported
+persisted formats are refused without conversion; there is no automatic updater
+or tracker migration tool.
+
+## Local checks
+
+```sh
+go test -count=1 -race ./...
+go vet ./...
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/linux-arm64/ ./cmd/lit-server ./cmd/lit
+GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/darwin-arm64/ ./cmd/lit
+```
+
+The workflow in `.github/workflows/lit.yml` contains the full accepted matrix
+and archive commands. To verify its generated artifacts locally:
+
+```sh
+LIT_ARCHIVE_DIR=/absolute/path/to/dist LIT_ARCHIVE_VERSION=v0.1.0 go test -count=1 -v ./packaging
+```
+
+The archive check verifies all five checksums, exact archive contents, executable
+permissions, and (on Linux amd64) versions from the actual archived executables.
+It does not start or enable systemd or claim native non-Linux runtime validation.
+
+## Consultation skill
+
+`consult` is included in the embedded skills. Agents use it to invoke a separately
+installed Claude or Codex CLI directly; there is no `lit consult` command.
+The skill guides exact model/effort selection, explicit session reuse, read-only
+permissions and agent-managed discussion notes. Coordination is followed by the
+agent rather than enforced by a helper. Existing consultation JSON records,
+locks and vendor transcripts are preserved as evidence; no migration or deletion
+is performed. Rerun `setup-skills` after updating the CLI to install this revision.
+
+## Output formats
+
+Tracker commands accept `--format cli|markdown|json`. The default `cli` format
+uses terminal tables and labeled details. `markdown` produces document-ready
+Markdown, including readable tables. `json` retains the machine-readable result
+and error envelopes. Piping does not change the selected format.
+
+```sh
+lit projects list --session poc-human
+lit projects list --session poc-human --format markdown > projects.md
+lit projects list --session poc-human --format json
+lit session set --session poc-human --output-format cli
+```
+
+`--format` affects one invocation on ordinary commands. `connect --output-format`
+and `session set --output-format` save the session preference. For compatibility,
+`connect --format` also saves that format when `--output-format` is absent; with
+both flags, `--output-format` controls persistence and `--format` controls display. A session without a
+saved preference uses `cli`. Existing saved `human` preferences and checkout
+caches render as `cli` without changing client IDs, state revisions or storage
+versions. The service continues accepting legacy `human` values for old API
+clients, while new CLI flags and completions offer only the three public names.
+JSON responses retain the stored preference verbatim, including legacy `human`.
+
+Errors before contacting the service use an explicit `--format`, otherwise the
+matching checkout cache. Without either, offline/bootstrap errors retain the
+JSON fallback so scripts can still inspect the error code. A cache for another
+service/client or unsupported cache version is ignored.

@@ -1,0 +1,35 @@
+{
+  "targets": [
+    {
+      "expected_revision": 1,
+      "id": "00000000-0000-4000-8000-000000000003",
+      "type": "projects"
+    }
+  ],
+  "operations": [
+    {
+      "remove": {},
+      "add": {
+        "repository_refs": [
+          "z",
+          "a"
+        ]
+      },
+      "set": {
+        "description": "# A\r\n<&> 雪\n",
+        "title": "feat/a"
+      },
+      "kind": "update",
+      "id": "00000000-0000-4000-8000-000000000003",
+      "type": "projects"
+    }
+  ],
+  "actor": {
+    "kind": "human",
+    "name": "A",
+    "client_id": "00000000-0000-4000-8000-000000000002"
+  },
+  "service_id": "00000000-0000-4000-8000-000000000001",
+  "operation": "transaction",
+  "schema_version": 1
+}

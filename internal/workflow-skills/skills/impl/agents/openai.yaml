@@ -1,0 +1,3 @@
+interface:
+  display_name: "Impl"
+  short_description: "Implement one ticket through verified local commits"

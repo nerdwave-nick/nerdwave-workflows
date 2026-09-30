@@ -1,0 +1,5 @@
+interface:
+  display_name: "Triage"
+  short_description: "Evaluate issues and record dispositions"
+policy:
+  allow_implicit_invocation: false

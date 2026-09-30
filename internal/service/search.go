@@ -1,0 +1,217 @@
+package service
+
+import (
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"net/http"
+	"sort"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"golang.org/x/text/cases"
+)
+
+// Fold each scalar with its source position: expanding folds (ß -> ss) must
+// never shift excerpt positions or change the original displayed content.
+func searchExcerpt(field, body, query string, sensitive bool, context int) (protocol.SearchExcerpt, bool) {
+	source := []rune(body)
+	hay := body
+	needle := query
+	positions := []int{}
+	if !sensitive {
+		fold := cases.Fold()
+		var b strings.Builder
+		for i, r := range source {
+			f := fold.String(string(r))
+			b.WriteString(f)
+			for range []rune(f) {
+				positions = append(positions, i)
+			}
+		}
+		hay = b.String()
+		needle = fold.String(query)
+	}
+	index := strings.Index(hay, needle)
+	if index < 0 {
+		return protocol.SearchExcerpt{}, false
+	}
+	first := utf8.RuneCountInString(hay[:index])
+	last := first + utf8.RuneCountInString(needle)
+	if !sensitive {
+		last = positions[last-1] + 1
+		first = positions[first]
+	}
+	lineStart := first
+	for lineStart > 0 && source[lineStart-1] != '\n' {
+		lineStart--
+	}
+	lineEnd := last
+	for lineEnd < len(source) && source[lineEnd] != '\n' {
+		lineEnd++
+	}
+	left, right := lineStart, lineEnd
+	for n := 0; n < context && left > 0; n++ {
+		left--
+		for left > 0 && source[left-1] != '\n' {
+			left--
+		}
+	}
+	for n := 0; n < context && right < len(source); n++ {
+		right++
+		for right < len(source) && source[right] != '\n' {
+			right++
+		}
+	}
+	wantLeft, wantRight := left, right
+	if right-left > 400 {
+		// Center around the first match, then use spare room at either boundary.
+		center := first + (last-first)/2
+		left = center - 200
+		if left < wantLeft {
+			left = wantLeft
+		}
+		right = left + 400
+		if right > wantRight {
+			right = wantRight
+			left = right - 400
+		}
+	}
+	return protocol.SearchExcerpt{Field: field, Text: string(source[left:right]), StartLine: 1 + strings.Count(string(source[:left]), "\n"), MatchLine: 1 + strings.Count(string(source[:first]), "\n"), ExcerptTruncated: left > wantLeft || right < wantRight}, true
+}
+
+type searchCursor struct {
+	QueryHash string `json:"query_hash"`
+	After     string `json:"after"`
+}
+
+func searchKey(v protocol.SearchResult) string { return v.ProjectID + "/" + v.Type + "/" + v.ID }
+func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (ProjectPage, error) {
+	out := ProjectPage{Items: []any{}}
+	if q.Query == "" || !utf8.ValidString(q.Query) || q.ContextLines < 0 {
+		return out, invalid("query must be nonempty UTF-8 and context_lines nonnegative")
+	}
+	if q.Scope.AllProjects && q.Scope.ProjectID != "" {
+		return out, invalid("conflicting search scope")
+	}
+	if !q.Scope.AllProjects {
+		if q.Scope.ProjectID == "" && c.ProjectID != nil {
+			q.Scope.ProjectID = *c.ProjectID
+		}
+		if q.Scope.ProjectID == "" {
+			return out, invalid("select a project or all_projects")
+		}
+		p, e := s.ResolveProject(q.Scope.ProjectID)
+		if e != nil {
+			return out, e
+		}
+		q.Scope.ProjectID = p.ID
+	}
+	if q.Limit == 0 {
+		q.Limit = 100
+	}
+	if q.Limit < 1 || q.Limit > 1000 {
+		return out, invalid("limit must be between 1 and 1000")
+	}
+	token := q.Cursor
+	q.Cursor = ""
+	b, _ := json.Marshal(q)
+	h := sha256.Sum256(b)
+	hash := hex.EncodeToString(h[:])
+	after := ""
+	if token != "" {
+		raw, e := base64.RawURLEncoding.DecodeString(token)
+		if e != nil {
+			return out, invalid("invalid search cursor")
+		}
+		var cursor searchCursor
+		if protocol.Decode(raw, &cursor) != nil || cursor.QueryHash != hash {
+			return out, invalid("search cursor does not match query")
+		}
+		parts := strings.Split(cursor.After, "/")
+		if len(parts) != 3 || !protocol.ValidUUID(parts[0]) || !protocol.ResourceType(parts[1]) || !protocol.ValidUUID(parts[2]) {
+			return out, invalid("invalid search cursor position")
+		}
+		after = cursor.After
+	}
+	state, e := s.ReadRecordState()
+	if e != nil {
+		return out, e
+	}
+	matches := []protocol.SearchResult{}
+	for _, record := range state {
+		typ, id, rev, _, _ := recordIdentity(record)
+		result := protocol.SearchResult{Type: typ, ID: id, Revision: rev, Excerpts: []protocol.SearchExcerpt{}}
+		fields := [][2]string{}
+		switch v := record.(type) {
+		case protocol.Project:
+			result.ProjectID = v.ID
+			fields = append(fields, [2]string{"description", v.Description})
+		case protocol.Issue:
+			result.ProjectID = v.ProjectID
+			result.IssueID = v.ID
+			result.IssueTitle = v.Title
+			fields = append(fields, [2]string{"title", v.Title}, [2]string{"body", v.Body})
+		case protocol.Comment:
+			owner, ok := state[recordKey("issues", v.IssueID)].(protocol.Issue)
+			if !ok {
+				return out, invalid("comment owner missing")
+			}
+			result.ProjectID = owner.ProjectID
+			result.IssueID = owner.ID
+			result.IssueTitle = owner.Title
+			fields = append(fields, [2]string{"body", v.Body})
+		}
+		if !q.Scope.AllProjects && result.ProjectID != q.Scope.ProjectID {
+			continue
+		}
+		if searchKey(result) <= after {
+			continue
+		}
+		for _, field := range fields {
+			if ex, ok := searchExcerpt(field[0], field[1], q.Query, q.CaseSensitive, q.ContextLines); ok {
+				result.Excerpts = append(result.Excerpts, ex)
+			}
+		}
+		if len(result.Excerpts) > 0 {
+			matches = append(matches, result)
+		}
+	}
+	sort.Slice(matches, func(i, j int) bool { return searchKey(matches[i]) < searchKey(matches[j]) })
+	if len(matches) > q.Limit {
+		b, _ := json.Marshal(searchCursor{hash, searchKey(matches[q.Limit-1])})
+		cursor := base64.RawURLEncoding.EncodeToString(b)
+		out.NextCursor = &cursor
+		matches = matches[:q.Limit]
+	}
+	if len(matches) > s.Config.Limits.ExpandedRecords {
+		return out, protocol.E(413, "limit_exceeded", "snapshot item limit exceeded")
+	}
+	for _, v := range matches {
+		out.Items = append(out.Items, v)
+	}
+	return out, nil
+}
+func (s *Server) searchRoute(w http.ResponseWriter, r *http.Request, c protocol.Client) (bool, error) {
+	if r.URL.Path != "/v1/search" {
+		return false, nil
+	}
+	if r.Method != "POST" {
+		return true, protocol.E(404, "not_found", "unknown route")
+	}
+	if r.URL.RawQuery != "" {
+		return true, invalid("search options belong in request body")
+	}
+	var q protocol.SearchRequest
+	if e := s.Body(r, &q); e != nil {
+		return true, e
+	}
+	page, e := s.searchPage(q, c)
+	if e != nil {
+		return true, e
+	}
+	s.writeProjectPage(w, page)
+	return true, nil
+}
