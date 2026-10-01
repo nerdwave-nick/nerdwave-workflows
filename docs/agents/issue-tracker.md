@@ -9,5 +9,10 @@ See [installation](../installation.md) for service setup and client connections,
 [CLI help](../cli-help.md) for command usage, and
 [verification](../development/testing.md) for isolated development checks.
 
+Milestones are optional named worksets in a single project. Use their explicit
+membership when a planning or orchestration task names a milestone; do not infer
+members from issue parentage. External blockers remain dependencies without
+becoming milestone members.
+
 Keep local planning notes, agent transcripts, and private tracker state outside
 version control. `.scratch/` is ignored for local working notes.

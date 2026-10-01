@@ -54,6 +54,12 @@ A unit of tracked work or discussion owned by exactly one project. Issues may
 have one parent within that project and may link to or block issues in other
 projects.
 
+**Milestone**:
+An optional named workset of issues within one project, used to identify an
+explicit delivery or orchestration scope. Membership is explicit and may overlap
+with other milestones; it does not follow parentage or imply a blocker. A milestone
+has no lifecycle state, and its progress is a read-only projection of its members.
+
 **Shared specification**:
 The agreed behavior that applies across an effort's implementation tickets.
 Individual tickets describe their slices without silently overriding it.
