@@ -17,6 +17,15 @@ existing execution authorization still applies within its stated scope. Stages c
 be invoked independently. Stop at the destination rather than manufacturing a map
 when the route is already clear.
 
+Milestones are optional named project worksets for useful delivery boundaries.
+Use them when a plan has distinct objectives worth selecting later; do not create
+one for every map or make one mandatory for a small task. A milestone groups the
+explicit issues selected for that boundary. Parentage does not add members, and
+membership does not create blocker edges or authorize implementation. Selecting a
+milestone narrows the planning candidates to its members; it does not authorize
+every member for execution. Read the shared [milestone guidance](../lit/references/milestones.md)
+and installed command help before using `lit milestones`.
+
 ## Chart
 
 Use [clarify](../clarify/SKILL.md), including its modeling/documentation behavior,
@@ -42,6 +51,12 @@ wiring native blocking links. Parentage alone does not block. Research gathers
 facts; prototype and clarify require the human's decision; task removes a specific
 planning prerequisite within existing authorization. Challenge and consult are
 techniques inside decisions, not extra mandatory ticket types.
+
+When a useful delivery boundary is agreed, describe its objective and candidate
+issue scope in the map and identify the corresponding milestone by title. Keep
+unresolved human choices visible and continue resolving at most one per logical
+session, even when several belong to the same milestone. Do not add a planning
+issue to an implementation milestone unless the user explicitly wants it included.
 
 Do not mechanically ticket vague areas. Graduate them when their question becomes
 precise, even if currently blocked. Charting ends with the map and its frontier;
