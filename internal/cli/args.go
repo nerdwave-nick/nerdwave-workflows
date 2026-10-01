@@ -169,6 +169,7 @@ func allowedFlags(a Args) map[string]bool {
 			m["project"] = true
 		}
 	case "connect":
+		m["session-id-only"] = false
 		for _, k := range []string{"output-format", "client-id", "actor-name", "actor-kind", "project", "runtime-vendor", "runtime-session-id"} {
 			m[k] = true
 		}

@@ -146,6 +146,25 @@ lit connect --session poc-human --actor-name Alex --actor-kind human
 lit projects list --session poc-human
 ```
 
+To capture the logical session name in Fish without replacing the current
+selection if connection fails:
+
+```fish
+set -l lit_session (lit connect --session-id-only)
+and set -gx LIT_SESSION "$lit_session"
+```
+
+For Bash or Zsh:
+
+```sh
+lit_session=$(lit connect --session-id-only) && export LIT_SESSION="$lit_session"
+```
+
+`--session-id-only` prints only the logical name and a newline on success, even
+with `--format json` or a saved Markdown preference. Errors and warnings stay on
+stderr. The flag does not itself change saved output preferences. Session selection
+still honors `--session` and `LIT_SESSION`, so an existing exported session is reused.
+
 Logical session selection is `--session NAME` > `LIT_SESSION`. An explicitly
 supplied empty `--session` is invalid; omit the flag to use the fallback. With neither,
 `lit connect` creates a fresh isolated client under a random

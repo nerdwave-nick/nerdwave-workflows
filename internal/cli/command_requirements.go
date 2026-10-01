@@ -31,6 +31,11 @@ func addCommandRequirements(root *cobra.Command) {
 		}
 		path := strings.TrimPrefix(c.CommandPath(), "lit ")
 		requirements, forms := requirementsFor(path)
+		if path == "connect" {
+			requirements += "\n--session-id-only prints only the logical session name plus a newline on success, not the client UUID.\nIt overrides cli/markdown/json rendering for this call; --format and --output-format retain their normal preference effects.\nErrors and warnings go to stderr; failures return a nonzero status."
+			forms += "\nlit connect [--session NAME] --session-id-only"
+			c.Example += "\n  set -gx LIT_SESSION (lit connect --session-id-only)  # fish, current shell"
+		}
 		c.Long = strings.TrimSpace(c.Long)
 		if c.Long == "" {
 			c.Long = c.Short + "."

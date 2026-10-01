@@ -147,6 +147,12 @@ func runTracker(argv []string, out, errOut io.Writer) int {
 	if x := WriteJSON(cachePath(app.Mapping.ClientID), Cache{1, app.Mapping.ClientID, meta.ServiceID, app.preference()}); x != nil {
 		fmt.Fprintln(errOut, "warning: operation succeeded; output cache could not be written:", x)
 	}
+	if a.Command == "connect" && a.Has("session-id-only") {
+		if _, err := fmt.Fprintln(out, name); err != nil {
+			return app.Error(err)
+		}
+		return 0
+	}
 	return app.Print(result)
 }
 func validateArgs(a Args) error {

@@ -15,6 +15,61 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
 )
 
+func TestConnectSessionIDOnly(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LIT_STATE_DIR", t.TempDir())
+	t.Setenv("LIT_SESSION", "")
+	data, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer data.Close()
+	handler, err := service.New(data, service.Config{Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"test"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	t.Setenv("LIT_ENDPOINT", server.URL)
+	var out, stderr bytes.Buffer
+	run := func(args ...string) int {
+		out.Reset()
+		stderr.Reset()
+		return Run(args, &out, &stderr)
+	}
+	if code := run("connect", "--session-id-only"); code != 0 {
+		t.Fatalf("%d: %s", code, &stderr)
+	}
+	name := strings.TrimSuffix(out.String(), "\n")
+	if !strings.HasPrefix(name, "throwaway-") || !protocol.ValidUUID(strings.TrimPrefix(name, "throwaway-")) || out.String() != name+"\n" || stderr.Len() != 0 {
+		t.Fatalf("unexpected output: %q stderr %q", &out, &stderr)
+	}
+	t.Setenv("LIT_SESSION", name)
+	if code := run("session", "get", "--format", "json"); code != 0 || !strings.Contains(out.String(), name) {
+		t.Fatalf("returned name unusable: %s %s", &out, &stderr)
+	}
+	for _, format := range []string{"cli", "markdown", "json"} {
+		if code := run("connect", "--session-id-only", "--format", format); code != 0 || out.String() != name+"\n" {
+			t.Fatalf("%s: %s %s", format, &out, &stderr)
+		}
+	}
+	if code := run("connect", "--session", "named", "--session-id-only", "--output-format", "markdown"); code != 0 || out.String() != "named\n" {
+		t.Fatalf("named: %s %s", &out, &stderr)
+	}
+	if code := run("session", "get", "--session", "named", "--format", "json"); code != 0 || !strings.Contains(out.String(), `"output_format":"markdown"`) {
+		t.Fatalf("preference: %s %s", &out, &stderr)
+	}
+	if code := run("connect", "--session-id-only", "--actor-kind", "invalid"); code == 0 || out.Len() != 0 || stderr.Len() == 0 {
+		t.Fatalf("failure polluted stdout: %s %s", &out, &stderr)
+	}
+	if code := run("session", "get", "--session-id-only"); code == 0 || out.Len() != 0 {
+		t.Fatalf("flag accepted outside connect: %s %s", &out, &stderr)
+	}
+	if code := run("connect", "--help"); code != 0 || !strings.Contains(out.String(), "--session-id-only") {
+		t.Fatalf("help: %s %s", &out, &stderr)
+	}
+}
+
 func TestConnectLogicalSessions(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("HOME", t.TempDir())
