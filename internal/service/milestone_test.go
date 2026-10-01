@@ -266,6 +266,43 @@ func TestMilestoneProjectionBlockersClaimsHistoryAndRestart(t *testing.T) {
 	}
 }
 
+func TestMilestoneHistoryHonorsExplicitProjectAndPagination(t *testing.T) {
+	s, c := projectTestServer(t, t.TempDir())
+	defer s.Store.Close()
+	project, selected := protocol.UUID(), protocol.UUID()
+	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/history")}, protocol.ProjectInput{ID: selected, Title: textPointer("feat/selected")}))
+	mID := protocol.UUID()
+	created := prepareMilestoneTest(t, s, c, project, protocol.ProjectInput{ID: mID, Title: textPointer("History scope")})
+	executeRecordTest(t, s, c, created)
+	updated, err := s.PrepareRecords(protocol.PrepareRequest{Operation: "milestone.update", Project: project, Items: []protocol.ProjectInput{{Target: mID, Set: protocol.ProjectSet{Body: textPointer("second revision")}}}}, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	executeRecordTest(t, s, c, updated)
+	c.ProjectID = &selected
+	if err = s.SaveClient(c); err != nil {
+		t.Fatal(err)
+	}
+	path := "/v1/milestones/" + mID + "/history?project_id=" + project + "&limit=1"
+	code, first := directRequest(t, s, c, "GET", path, nil)
+	if code != 200 || len(first["items"].([]any)) != 1 || first["next_cursor"] == nil {
+		t.Fatalf("scoped first history page: %d %#v", code, first)
+	}
+	cursor := first["next_cursor"].(string)
+	code, secondPage := directRequest(t, s, c, "GET", path+"&cursor="+cursor, nil)
+	if code != 200 || len(secondPage["items"].([]any)) != 1 {
+		t.Fatalf("scoped next history page: %d %#v", code, secondPage)
+	}
+	code, all := directRequest(t, s, c, "GET", "/v1/milestones/"+mID+"/history?project_id="+project+"&all=true", nil)
+	if code != 200 || len(all["items"].([]any)) != 2 {
+		t.Fatalf("scoped full history: %d %#v", code, all)
+	}
+	code, detail := directRequest(t, s, c, "GET", "/v1/milestones/"+mID+"/history/"+created.RequestHash+"?project_id="+project, nil)
+	if code != 200 || detail["data"].(map[string]any)["request_hash"] != created.RequestHash {
+		t.Fatalf("scoped history detail: %d %#v", code, detail)
+	}
+}
+
 func prepareMilestoneTest(t *testing.T, s *Server, c protocol.Client, project string, item protocol.ProjectInput) protocol.Prepared {
 	t.Helper()
 	p, e := s.PrepareRecords(protocol.PrepareRequest{Operation: "milestone.create", Project: project, Items: []protocol.ProjectInput{item}}, c)
