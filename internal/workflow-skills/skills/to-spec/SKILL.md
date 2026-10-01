@@ -26,6 +26,14 @@ A standalone issue may carry its entire specification. Preserve unrelated projec
 content and repository identities/roles; machine-specific checkout paths stay local.
 Do not create competing authoritative briefs or silently override accepted decisions.
 
+If the effort uses milestones, read their current membership and objective using
+the shared [milestone guidance](../lit/references/milestones.md) and installed
+`lit milestones` help. Record the accepted delivery boundaries, member intent, and
+cross-cutting acceptance in the shared specification, where they remain authoritative
+for all tickets. Keep each milestone body to a short objective and a reference to
+that shared specification; do not copy the full requirements into milestone bodies.
+Milestones are optional, and their membership does not imply parentage or blockers.
+
 Use the structure below when useful; scale detail to the actual requirements:
 
 - Problem and intended user-visible solution.

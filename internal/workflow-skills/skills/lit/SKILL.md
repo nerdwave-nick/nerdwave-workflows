@@ -44,3 +44,9 @@ paths. Read each affected repository's instructions and domain docs. Tickets own
 their slice and acceptance criteria; they cannot override the shared specification.
 Workflow stages are independently invokable, and planning does not authorize
 implementation, external consultation, push, publication, or deployment.
+
+Milestones are optional named worksets of issues within one project. Membership is
+explicit, may overlap across milestones, and does not follow parentage or create
+blockers. Read [milestone guidance](references/milestones.md) when planning,
+specifying, publishing, or selecting a milestone scope; installed command help
+remains authoritative for syntax.
