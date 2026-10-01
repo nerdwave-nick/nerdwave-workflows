@@ -14,11 +14,45 @@ accepted decisions. A code/decision mismatch is evidence to discuss, not authori
 to overwrite the user's decision. Delegate bounded fact gathering when useful
 and supported by the host; pending evidence blocks only dependent questions.
 
-Ask the currently answerable questions in manageable numbered rounds. Explain
-tradeoffs and give a reasoned recommendation where evidence supports one. Wait
-for the user's decisions before asking questions dependent on those answers.
-Recompute the remaining questions after each round; do not demand exhaustive
-answers to irrelevant hypothetical branches.
+Ask currently answerable questions in small rounds, usually two to four related,
+independently answerable questions. One question is fine when only one is ready;
+do not pad a round or dump the entire decision tree. In planner work, stay within
+the active decision ticket. Wait for answers or pending evidence before asking
+questions that depend on them.
+
+Use this presentation by default, rather than burying questions in free-form
+prose. Keep question numbers unique across the discussion and retain the same
+labels when returning to unanswered questions:
+
+```markdown
+❓ **Q1 — <short title>**
+<The question, with enough context and tradeoffs to answer. Use a short list
+of named options when useful.>
+
+➡️ **Recommendation:** <Suggested answer and a brief, grounded reason.>
+
+---
+
+❓ **Q2 — <short title>**
+<The next independently answerable question.>
+
+➡️ **Recommendation:** <Suggested answer and a brief, grounded reason.>
+```
+
+Recommend only when evidence or the user's constraints support it. Otherwise
+use `➡️ **Open choice:**` and explain the tradeoff or missing information without
+inventing a preferred answer. Investigate discoverable facts yourself; do not
+turn settled answers or factual findings into redundant approval questions.
+Keep introductions short and put the relevant explanation with its question.
+
+If the host requires a native question tool, use that interface, retaining the
+question labels and recommendation/reason where supported; do not duplicate the
+questions in prose. Explicit user preferences override this default format.
+
+Accept partial answers. Record explicit decisions, retain unanswered labels, and
+recompute the remaining questions before the next round. Reask only questions
+that still matter; do not treat silence as agreement or demand answers to branches
+made irrelevant by earlier decisions.
 
 Record accepted answers during the discussion, before moving to the next round.
 Use the existing decision record or shared tracker discussion when one is in
