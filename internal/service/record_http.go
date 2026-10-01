@@ -155,7 +155,13 @@ func (s *Server) recordRoute(w http.ResponseWriter, r *http.Request, c protocol.
 			return true, e
 		}
 		if len(segments) == 2 && segments[1] == "history" {
-			page, e := s.projectHistoryPage(typ+":"+segments[0], hs, r.URL.Query())
+			values := r.URL.Query()
+			// A milestone's project_id scopes the owner lookup above; it is not a
+			// history pagination option. Strip it only after that scoped resolution.
+			if typ == "milestones" {
+				values.Del("project_id")
+			}
+			page, e := s.projectHistoryPage(typ+":"+segments[0], hs, values)
 			if e != nil {
 				return true, e
 			}
