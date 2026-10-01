@@ -42,6 +42,8 @@ func recordIdentity(record any) (typ, id string, rev int64, created, updated str
 		return "issues", p.ID, p.Revision, p.CreatedAt, p.UpdatedAt
 	case protocol.Comment:
 		return "comments", p.ID, p.Revision, p.CreatedAt, p.UpdatedAt
+	case protocol.Milestone:
+		return "milestones", p.ID, p.Revision, p.CreatedAt, p.UpdatedAt
 	}
 	panic("unknown record")
 }
@@ -52,6 +54,8 @@ func recordBody(record any) string {
 	case protocol.Issue:
 		return p.Body
 	case protocol.Comment:
+		return p.Body
+	case protocol.Milestone:
 		return p.Body
 	}
 	return ""
@@ -76,6 +80,10 @@ func decodeRecord(typ string, b []byte) (any, error) {
 		var p protocol.Comment
 		e := protocol.Decode(b, &p)
 		return p, e
+	case "milestones":
+		var p protocol.Milestone
+		e := protocol.Decode(b, &p)
+		return p, e
 	}
 	return nil, invalid("unknown resource")
 }
@@ -86,6 +94,10 @@ func recordWrites(record any) []store.Write {
 	typ, id, _, _, _ := recordIdentity(record)
 	if p, ok := record.(protocol.Project); ok {
 		return []store.Write{{Path: projectDir(id) + "/content.md", Data: projectBytes(p)}, store.JSONWrite(projectDir(id)+"/relationships.json", projectRelationships{1, p.IssueIDs})}
+	}
+	if p, ok := record.(protocol.Milestone); ok {
+		m := map[string]any{"schema_version": p.SchemaVersion, "id": p.ID, "revision": p.Revision, "created_at": p.CreatedAt, "updated_at": p.UpdatedAt, "title": p.Title}
+		return []store.Write{{Path: recordPath(typ, id) + "/content.md", Data: encodeFrontmatter(m, p.Body)}, store.JSONWrite(recordPath(typ, id)+"/relationships.json", map[string]any{"schema_version": 1, "project_id": p.ProjectID, "issue_ids": p.IssueIDs})}
 	}
 	m := recordFields(record)
 	body := recordBody(record)
@@ -123,6 +135,8 @@ func (s *Server) readRecord(typ, id string) (any, error) {
 	metadataFields := []string{"schema_version", "id", "revision", "created_at", "updated_at"}
 	if typ == "issues" {
 		metadataFields = append(metadataFields, "title", "state", "labels", "assignee")
+	} else if typ == "milestones" {
+		metadataFields = append(metadataFields, "title")
 	} else {
 		metadataFields = append(metadataFields, "author")
 	}
@@ -143,6 +157,10 @@ func (s *Server) readRecord(typ, id string) (any, error) {
 	allowed := map[string]bool{"schema_version": true}
 	if typ == "issues" {
 		for _, k := range []string{"project_id", "parent_id", "child_ids", "comment_ids", "blocks", "blocked_by", "related"} {
+			allowed[k] = true
+		}
+	} else if typ == "milestones" {
+		for _, k := range []string{"project_id", "issue_ids"} {
 			allowed[k] = true
 		}
 	} else {
@@ -191,6 +209,13 @@ func (s *Server) Comment(id string) (protocol.Comment, error) {
 	}
 	return p.(protocol.Comment), nil
 }
+func (s *Server) Milestone(id string) (protocol.Milestone, error) {
+	p, e := s.readRecord("milestones", id)
+	if e != nil {
+		return protocol.Milestone{}, e
+	}
+	return p.(protocol.Milestone), nil
+}
 func (s *Server) Records(typ string) ([]any, error) {
 	if !protocol.ResourceType(typ) {
 		return nil, invalid("unknown resource")
@@ -232,6 +257,58 @@ func (s *Server) Comments() ([]protocol.Comment, error) {
 		out = append(out, r.(protocol.Comment))
 	}
 	return out, e
+}
+func (s *Server) Milestones() ([]protocol.Milestone, error) {
+	rs, e := s.Records("milestones")
+	out := []protocol.Milestone{}
+	for _, r := range rs {
+		out = append(out, r.(protocol.Milestone))
+	}
+	return out, e
+}
+func (s *Server) ResolveMilestone(selector, project string) (protocol.Milestone, error) {
+	mode := ""
+	for _, prefix := range []string{"title:", "id:"} {
+		if strings.HasPrefix(selector, prefix) {
+			mode = prefix
+			selector = strings.TrimPrefix(selector, prefix)
+			break
+		}
+	}
+	idPrefix, validIDPrefix := uuidPrefix(selector)
+	var projectID string
+	if project != "" {
+		p, e := s.ResolveProject(project)
+		if e != nil {
+			return protocol.Milestone{}, e
+		}
+		projectID = p.ID
+	}
+	if projectID == "" && (mode == "title:" || mode == "" && !validIDPrefix) {
+		return protocol.Milestone{}, invalid("select a project for milestone title")
+	}
+	found := []protocol.Milestone{}
+	all, e := s.Milestones()
+	if e != nil {
+		return protocol.Milestone{}, e
+	}
+	for _, m := range all {
+		if projectID != "" && m.ProjectID != projectID {
+			continue
+		}
+		byTitle := mode != "id:" && IssueTitleKey(selector) == IssueTitleKey(m.Title)
+		byID := mode != "title:" && validIDPrefix && strings.HasPrefix(strings.ReplaceAll(m.ID, "-", ""), idPrefix)
+		if byTitle || byID {
+			found = append(found, m)
+		}
+	}
+	if len(found) == 0 {
+		return protocol.Milestone{}, protocol.E(404, "not_found", "milestone does not exist")
+	}
+	if len(found) > 1 {
+		return protocol.Milestone{}, protocol.E(409, "ambiguous_reference", "milestone selector is ambiguous")
+	}
+	return found[0], nil
 }
 func (s *Server) ResolveIssue(selector, project string) (protocol.Issue, error) {
 	mode := ""

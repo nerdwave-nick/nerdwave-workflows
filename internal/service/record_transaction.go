@@ -16,7 +16,7 @@ type RecordState map[string]any
 func recordKey(typ, id string) string { return typ + "/" + id }
 func (s *Server) ReadRecordState() (RecordState, error) {
 	out := RecordState{}
-	for _, typ := range []string{"projects", "issues", "comments"} {
+	for _, typ := range []string{"projects", "issues", "comments", "milestones"} {
 		rs, e := s.Records(typ)
 		if e != nil {
 			return nil, e
@@ -128,6 +128,27 @@ func applyOperation(state RecordState, op protocol.Operation) error {
 			p.IssueID = *op.Set.IssueID
 		}
 		state[key] = p
+	case "milestones":
+		p := protocol.Milestone{SchemaVersion: 1, ID: op.ID, IssueIDs: []string{}}
+		if exists {
+			p = old.(protocol.Milestone)
+		} else if op.Set.Title == nil || op.Set.ProjectID == nil {
+			return invalid("milestone creation needs title and project")
+		}
+		if op.Set.Title != nil {
+			p.Title = *op.Set.Title
+		}
+		if op.Set.Body != nil {
+			p.Body = *op.Set.Body
+		}
+		if op.Set.ProjectID != nil {
+			p.ProjectID = *op.Set.ProjectID
+		}
+		if op.Set.IssueIDs != nil {
+			p.IssueIDs = append([]string{}, (*op.Set.IssueIDs)...)
+		}
+		p.IssueIDs = changeSet(p.IssueIDs, op.Add.IssueIDs, op.Remove.IssueIDs)
+		state[key] = p
 	default:
 		return invalid("unsupported operation")
 	}
@@ -146,6 +167,8 @@ func (s *Server) finalState(before RecordState, ops []protocol.Operation) (Recor
 		case protocol.Project:
 			p.IssueIDs = []string{}
 			after[k] = p
+		case protocol.Milestone:
+			// Milestone membership is explicit and independent of project issue ownership.
 		case protocol.Issue:
 			p.ChildIDs = []string{}
 			p.CommentIDs = []string{}
@@ -185,6 +208,18 @@ func (s *Server) finalState(before RecordState, ops []protocol.Operation) (Recor
 			issue := v.(protocol.Issue)
 			issue.CommentIDs = append(issue.CommentIDs, p.ID)
 			after[issueKey] = issue
+		case protocol.Milestone:
+			project, ok := after[recordKey("projects", p.ProjectID)].(protocol.Project)
+			if !ok {
+				return nil, invalid("milestone project does not exist")
+			}
+			_ = project
+			for _, id := range p.IssueIDs {
+				issue, ok := after[recordKey("issues", id)].(protocol.Issue)
+				if !ok || issue.ProjectID != p.ProjectID {
+					return nil, invalid("milestone members must exist in the same project")
+				}
+			}
 		}
 	}
 	for k, r := range after {
@@ -257,6 +292,24 @@ func (s *Server) validateRecordState(state RecordState) error {
 			if strings.TrimSpace(p.Author) == "" || !utf8.ValidString(p.Author) || !utf8.ValidString(p.Body) {
 				return invalid("invalid comment fields")
 			}
+		case protocol.Milestone:
+			if e := validateIssueTitle(p.Title); e != nil {
+				return e
+			}
+			if !utf8.ValidString(p.Body) || !protocol.ValidUUID(p.ProjectID) || !sortedSet(p.IssueIDs, true) {
+				return invalid("invalid milestone fields")
+			}
+			key := "milestones/" + p.ProjectID + "/" + IssueTitleKey(p.Title)
+			if titles[key] {
+				return invalid("duplicate milestone title")
+			}
+			titles[key] = true
+			for _, id := range p.IssueIDs {
+				issue, ok := state[recordKey("issues", id)].(protocol.Issue)
+				if !ok || issue.ProjectID != p.ProjectID {
+					return invalid("milestone members must exist in the same project")
+				}
+			}
 		}
 	}
 	return nil
@@ -325,6 +378,13 @@ func stampRecord(r any, stamp string) any {
 		p.Revision++
 		p.UpdatedAt = stamp
 		return p
+	case protocol.Milestone:
+		if p.Revision == 0 {
+			p.CreatedAt = stamp
+		}
+		p.Revision++
+		p.UpdatedAt = stamp
+		return p
 	}
 	panic("unknown record")
 }
@@ -367,6 +427,22 @@ func requiredGuards(before, after RecordState, ops []protocol.Operation) map[str
 	for _, op := range ops {
 		for _, state := range []RecordState{before, after} {
 			switch op.Type {
+			case "milestones":
+				if v, ok := state[recordKey("milestones", op.ID)]; ok {
+					m := v.(protocol.Milestone)
+					if _, exists := before[recordKey("projects", m.ProjectID)]; exists {
+						needed[recordKey("projects", m.ProjectID)] = true
+					}
+					for _, id := range m.IssueIDs {
+						if _, exists := before[recordKey("issues", id)]; exists {
+							needed[recordKey("issues", id)] = true
+						}
+					}
+				} else if op.Kind == "create" && op.Set.ProjectID != nil {
+					if _, exists := before[recordKey("projects", *op.Set.ProjectID)]; exists {
+						needed[recordKey("projects", *op.Set.ProjectID)] = true
+					}
+				}
 			case "issues":
 				visitIssue(state, op.ID, map[string]bool{})
 			case "comments":
@@ -503,15 +579,21 @@ func (s *Server) PrepareRecords(req protocol.PrepareRequest, c protocol.Client) 
 		return s.prepareLinks(req, c)
 	}
 	parts := strings.Split(req.Operation, ".")
-	if len(parts) != 2 || (parts[0] != "issue" && parts[0] != "comment") || (parts[1] != "create" && parts[1] != "update" && parts[1] != "close" && parts[1] != "reopen") {
+	if len(parts) != 2 || (parts[0] != "issue" && parts[0] != "comment" && parts[0] != "milestone") || (parts[1] != "create" && parts[1] != "update" && parts[1] != "close" && parts[1] != "reopen") {
 		return out, invalid("unsupported operation")
 	}
 	resource, kind := parts[0]+"s", parts[1]
+	if resource == "milestones" && kind != "create" && kind != "update" {
+		return out, invalid("unsupported milestone operation")
+	}
 	if resource == "comments" && kind != "create" && kind != "update" {
 		return out, invalid("unsupported comment operation")
 	}
 	if req.SchemaVersion != 0 && req.SchemaVersion != 1 {
 		return out, invalid("unsupported schema_version")
+	}
+	if req.Force && strings.HasPrefix(req.Operation, "milestone.") {
+		return out, invalid("force is inapplicable to milestones")
 	}
 	if len(req.Items) == 0 {
 		return out, invalid("empty batch")
@@ -563,6 +645,19 @@ func (s *Server) PrepareRecords(req protocol.PrepareRequest, c protocol.Client) 
 					}
 					op.Set.ParentID = nullable(&pid)
 				}
+			} else if resource == "milestones" {
+				op.Set.Title = item.Title
+				sel := item.Project
+				if sel == "" {
+					sel = project
+				}
+				p, e := s.ResolveProject(sel)
+				if e != nil {
+					return out, e
+				}
+				op.Set.ProjectID = &p.ID
+				members := append([]string{}, item.IssueIDs...)
+				op.Set.IssueIDs = &members
 			} else {
 				owner, e := s.ResolveIssue(item.Issue, project)
 				if e != nil {
@@ -579,6 +674,8 @@ func (s *Server) PrepareRecords(req protocol.PrepareRequest, c protocol.Client) 
 			var e error
 			if resource == "issues" {
 				old, e = s.ResolveIssue(item.Target, project)
+			} else if resource == "milestones" {
+				old, e = s.ResolveMilestone(item.Target, project)
 			} else {
 				old, e = s.ResolveComment(item.Target)
 			}
@@ -636,6 +733,12 @@ func (s *Server) PrepareRecords(req protocol.PrepareRequest, c protocol.Client) 
 						return out, invalid("invalid clear parent")
 					}
 					op.Set.ParentID = nullable(nil)
+				case "issues":
+					if resource != "milestones" || op.Set.IssueIDs != nil && len(*op.Set.IssueIDs) > 0 {
+						return out, invalid("invalid clear milestone issues")
+					}
+					v := []string{}
+					op.Set.IssueIDs = &v
 				default:
 					return out, invalid("unknown clear field")
 				}
@@ -762,5 +865,7 @@ func mergeRecordOperations(a, b protocol.Operation) (protocol.Operation, error) 
 	a.Remove.Related = union(a.Remove.Related, b.Remove.Related)
 	a.Add.Labels = union(a.Add.Labels, b.Add.Labels)
 	a.Remove.Labels = union(a.Remove.Labels, b.Remove.Labels)
+	a.Add.IssueIDs = union(a.Add.IssueIDs, b.Add.IssueIDs)
+	a.Remove.IssueIDs = union(a.Remove.IssueIDs, b.Remove.IssueIDs)
 	return a, nil
 }
