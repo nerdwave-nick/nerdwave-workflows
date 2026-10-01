@@ -124,6 +124,21 @@ func requirementsFor(path string) (string, string) {
 	if family == "issues" || family == "comments" && (verb == "create" || verb == "list") {
 		scope += "\n" + issueScope
 	}
+	if family == "milestones" {
+		const milestoneScope = "Milestone titles are resolved inside the selected project. A project-scoped UUID or ID prefix is valid; use the full UUID to avoid ambiguity."
+		switch verb {
+		case "get":
+			return "Required: one or more milestone REF operands. Resolve the reference in the selected project.\n" + milestoneScope + "\n" + sessionRequirement, prefix + " REF..."
+		case "history":
+			return "Required: one milestone REF operand. Resolve the reference in the selected project.\n" + milestoneScope + "\n--request-hash conflicts with --limit, --cursor and --all.\n--all conflicts with --limit/--cursor.\n" + sessionRequirement, prefix + " REF [--limit N] [--cursor TOKEN]\n" + prefix + " REF --all\n" + prefix + " REF --request-hash HASH"
+		case "list":
+			return "Required: project scope via --project REF, saved session selection, or project_id in the query file. Milestone queries cannot span projects.\nChoose flag filters or a typed JSON query object: cannot combine --file with query/filter flags.\n" + listRules + "\n" + sessionRequirement, prefix + " [--project REF] [FILTERS] [--limit N] [--cursor TOKEN]\n" + prefix + " [--project REF] [FILTERS] --all\n" + prefix + " --file PATH"
+		case "create":
+			return "Required: project selection via --project REF or the session, and --milestone TITLE per flag-defined item; or --file PATH (nonempty JSON array with project per item or selected project).\nRepeat --milestone to begin another atomic item; repeat --issue REF for members in that item. --issue references resolve within the milestone project.\nContent is optional. " + contentRules + "\n" + sessionRequirement, prefix + " [--project REF] --milestone TITLE [--content TEXT | --content-file PATH] [--issue REF...]\n" + prefix + " [--project REF] --milestone TITLE [ITEM_FLAGS] --milestone TITLE [ITEM_FLAGS]\n" + prefix + " --file PATH"
+		case "update":
+			return "Required: one or more milestone REF operands, or --file PATH (nonempty JSON array).\nUse --title, --content/--content-file, --add-issue, --remove-issue, --clear content|issues and --revision as needed. Member references resolve within each target milestone's project. --file cannot combine with flag or positional inputs. " + contentRules + "\n" + milestoneScope + "\n" + sessionRequirement, prefix + " REF... [CHANGE_FLAGS] [--revision N]\n" + prefix + " --file PATH"
+		}
+	}
 	switch verb {
 	case "get", "history":
 		refs := "REF..."
@@ -155,6 +170,7 @@ func requirementsFor(path string) (string, string) {
 		forms := prefix + " [FILTERS] [--limit N] [--cursor TOKEN]\n" + prefix + " [FILTERS] --all\n" + prefix + " --file PATH"
 		if family == "issues" {
 			req = "Required: project selection (--project or saved session), or --all-projects.\n--all-projects conflicts with explicit --project; query files may supply project_id or all_projects."
+			req += "\n--milestone REF is project-scoped and cannot be combined with --all-projects."
 			forms = prefix + " [--project REF | --all-projects] [FILTERS] [--limit N] [--cursor TOKEN]\n" + prefix + " [--project REF | --all-projects] [FILTERS] --all\n" + prefix + " --file PATH"
 		}
 		if family == "comments" {
@@ -258,7 +274,7 @@ func flagRequirements(path string) map[string]string {
 			}
 		}
 	}
-	for _, name := range []string{"project-title", "project-id", "issue", "comment", "from", "to", "relation", "file"} {
+	for _, name := range []string{"project-title", "project-id", "milestone", "issue", "comment", "from", "to", "relation", "file"} {
 		if strings.Contains(path, " create") || strings.Contains(path, " update") || strings.HasSuffix(path, " link") || strings.HasSuffix(path, " unlink") || strings.HasSuffix(path, " close") || strings.HasSuffix(path, " reopen") {
 			m[name] = "Conditional (see valid forms)"
 		}
@@ -272,6 +288,7 @@ func referenceHelp(path string) string {
 	const project = "Project REF: exact title, UUID or unique UUID prefix.\nUse title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching."
 	const issue = "Issue REF: title in the selected project, UUID or unique UUID prefix.\nUse title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.\nPROJECT_TITLE:ISSUE_REF selects an issue in another project, for example\nfeat/api:title:Review API. A qualified prefix is scoped to that project;\nan unqualified UUID or ID prefix is global even when a project is selected.\nFor titles containing slashes and colons, quote the argument and force title matching:\n--project test/poc 'title:Refactor a/b: cleanup'."
 	const comment = "Comment REF: UUID, unique UUID prefix, or id:UUID_PREFIX.\nComments have no title selector or project-qualified selector."
+	const milestone = "Milestone REF: exact title in the selected project, UUID, unique UUID prefix, title:TITLE, or id:UUID_PREFIX.\nIssue membership references resolve inside the selected milestone project."
 	switch {
 	case path == "connect" || path == "session set" || path == "grep" || path == "workflow-session fresh" || path == "workflow-session subagent":
 		return project
@@ -283,6 +300,8 @@ func referenceHelp(path string) string {
 			note = "These rules apply to existing issue references such as --parent, not the new --issue title.\n"
 		}
 		return note + project + "\n" + issue
+	case strings.HasPrefix(path, "milestones "):
+		return milestone
 	case path == "comments create" || path == "comments list":
 		return "The comment owner selector identifies the owning issue.\n" + project + "\n" + issue
 	case strings.HasPrefix(path, "comments "):

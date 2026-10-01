@@ -73,7 +73,7 @@ func parseArgs(argv []string) (Args, error) {
 	if a.Command == "" {
 		return a, fmt.Errorf("a command is required")
 	}
-	if a.Command == "issues" || a.Command == "comments" {
+	if a.Command == "issues" || a.Command == "comments" || a.Command == "milestones" {
 		return parseRecordArgs(argv, a)
 	}
 	if a.Command == "projects" {

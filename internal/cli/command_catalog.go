@@ -7,6 +7,12 @@ var flagDescriptions = map[string]string{
 	"client-id": "Existing client `UUID` to resume", "actor-name": "Actor display `NAME`", "actor-kind": "Actor `KIND`: human or agent", "project": "Project `REF`: title or UUID; otherwise session selection", "runtime-vendor": "Runtime vendor `NAME`", "runtime-session-id": "Vendor runtime session `ID`", "output-format": "Session output `FORMAT`: cli, markdown or json", "session-id": "Show the client session ID", "service-id": "Show the bound service ID", "status": "Show connection status", "revision": "Expected object revision `N`; reject stale mutations", "project-title": "New project `TITLE`; repeat to begin another atomic item", "project-id": "Project `REF`; repeat to begin another update item", "content": "UTF-8 content `TEXT`; conflicts with --content-file", "content-file": "Read UTF-8 content from `PATH`; - reads stdin once", "repository": "Repository `REF` associated with this project (repeatable)", "file": "Input `PATH`: mutation JSON array or typed query object; - reads stdin once", "title": "Object `TITLE` (exact title filter on list)", "add-repository": "Add repository `REF` (repeatable)", "remove-repository": "Remove repository `REF` (repeatable)", "clear": "Clear a `FIELD` (repeatable): content, labels, assignee, parent or repositories as applicable", "sort": "Sort `FIELD`: created-at, updated-at or title as applicable", "direction": "Sort `DIRECTION`: asc or desc", "limit": "Page size `N` (default 100, maximum 1000 unless configured)", "cursor": "Continue the same query with opaque `TOKEN`", "all": "Return all results as one bounded snapshot; conflicts with --limit/--cursor", "request-hash": "Find history for transaction `HASH`", "issue": "Issue `REF` (create: new title); repeat to begin another atomic item", "comment": "Comment `REF` to update; repeat to begin another atomic item", "parent": "Parent issue `REF`; list accepts none for no parent", "state": "Issue `STATE`: open or closed", "label": "Initial issue `LABEL` (repeatable)", "assignee": "Assignee `NAME`; list accepts none for unassigned", "author": "Comment author `NAME`", "add-label": "Add issue `LABEL` (repeatable)", "remove-label": "Remove issue `LABEL` (repeatable)", "from": "Source issue `REF`; repeat to begin another atomic relation group", "to": "Target issue `REF` in this relation group (repeatable)", "relation": "Relation `KIND`: blocks, blocked-by or related", "force": "Explicitly override competing claim ownership where supported", "all-projects": "Search or list across projects instead of the selected project", "id": "Match object `UUID` (repeatable)", "q": "Case-insensitive content substring `TEXT`", "created-after": "Inclusive creation boundary `RFC3339`", "created-before": "Exclusive creation boundary `RFC3339`", "updated-after": "Inclusive update boundary `RFC3339`", "updated-before": "Exclusive update boundary `RFC3339`", "repository-ref": "Match repository `REF` (repeatable)", "labels-all": "Require every specified `LABEL` (repeatable)", "labels-any": "Require any specified `LABEL` (repeatable)", "labels-none": "Exclude every specified `LABEL` (repeatable)", "blocked": "Filter blocked issues: `BOOL` true or false", "claimed": "Filter active work claims: `BOOL` true or false", "owner-client-id": "Filter claim owner by client `UUID`", "issue-id": "Filter claim by issue `UUID`", "for": "Lease `DURATION`, positive and at most 1h", "until": "Absolute lease expiry `RFC3339`, at most one hour from service time", "context": "Include `N` surrounding lines in search excerpts", "n": "Show line numbers in search excerpts", "case-sensitive": "Use case-sensitive literal matching", "scope": "Install `SCOPE`: local, user or custom", "agent": "Target `AGENT`: codex, claude or both", "path": "Parent `DIRECTORY` of .codex/.claude for custom scope", "host": "Agent `HOST`: codex or claude", "runtime-id": "Explicit vendor runtime session `ID`", "cli": "Path to lit `EXECUTABLE` (default: this binary)", "discussion-id": "Optional discussion `ID` for workflow metadata", "parent-runtime-id": "Parent runtime session `ID` for a new subagent",
 }
 
+func init() {
+	flagDescriptions["milestone"] = "Milestone `TITLE` (create: new title); repeat to begin another atomic item"
+	flagDescriptions["add-issue"] = "Add issue `REF` to milestone membership (repeatable)"
+	flagDescriptions["remove-issue"] = "Remove issue `REF` from milestone membership (repeatable)"
+}
+
 func commandFlags(family, verb string) map[string]bool {
 	if family == "session" || family == "claims" || family == "transactions" {
 		return allowedFlags(Args{Command: family, Verb: verb})
@@ -25,6 +31,8 @@ func commandFlags(family, verb string) map[string]bool {
 			add("project-title repository")
 		case "issues":
 			add("issue parent state label assignee")
+		case "milestones":
+			add("milestone issue")
 		case "comments":
 			add("issue author")
 		}
@@ -35,6 +43,8 @@ func commandFlags(family, verb string) map[string]bool {
 			add("project-id title add-repository remove-repository")
 		case "issues":
 			add("issue title parent state assignee add-label remove-label")
+		case "milestones":
+			add("title add-issue remove-issue")
 		case "comments":
 			add("comment author")
 		}
@@ -58,7 +68,7 @@ func commandFlags(family, verb string) map[string]bool {
 		add("request-hash limit cursor")
 		m["all"] = false
 	}
-	if family != "projects" && (verb == "create" || verb == "update" || verb == "close" || verb == "reopen" || verb == "link" || verb == "unlink") {
+	if family != "projects" && family != "milestones" && (verb == "create" || verb == "update" || verb == "close" || verb == "reopen" || verb == "link" || verb == "unlink") {
 		m["force"] = false
 	}
 	return m
@@ -124,7 +134,7 @@ func commandSummary(f, v string) string {
 }
 func commandLong(f, v string) string {
 	s := commandSummary(f, v) + "."
-	if v == "get" && (f == "projects" || f == "issues" || f == "comments") {
+	if v == "get" && (f == "projects" || f == "issues" || f == "comments" || f == "milestones") {
 		s += "\nWith --format markdown, one complete returned record becomes YAML frontmatter\nplus the exact original Markdown body. Duplicate selectors may return one record;\nmultiple returned records use a structured report. Export each separately for documents.\nThis is a read snapshot, not an import format: --content-file reads the entire file as body."
 	}
 
@@ -144,7 +154,7 @@ func commandLong(f, v string) string {
 }
 func commandExample(f, v string) string {
 	p := "  lit " + f + " " + v + " --session my-session"
-	if f == "issues" || f == "comments" && (v == "create" || v == "list") || f == "claims" && v != "list" {
+	if f == "issues" || f == "milestones" || f == "comments" && (v == "create" || v == "list") || f == "claims" && v != "list" {
 		p += " --project test/poc"
 	}
 	switch v {
@@ -156,6 +166,8 @@ func commandExample(f, v string) string {
 			p += " --issue 'Verify the PoC' --content 'Exercise the tracker'"
 		case "comments":
 			p += " --issue 'Verify the PoC' --content 'Verified'"
+		case "milestones":
+			p += " --milestone M1 --content 'Verify the PoC'"
 		}
 	case "list":
 		if f == "comments" {
@@ -168,6 +180,8 @@ func commandExample(f, v string) string {
 				p += " test/poc"
 			} else if f == "comments" {
 				p += " 01234567-89ab-4cde-8fab-0123456789ab"
+			} else if f == "milestones" {
+				p += " M1"
 			} else {
 				p += " 'Verify the PoC'"
 			}

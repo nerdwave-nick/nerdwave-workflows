@@ -51,9 +51,9 @@ func newCommandTree(argv []string, out, errOut io.Writer, code *int) *cobra.Comm
 		}
 		root.AddCommand(c)
 	}
-	for _, family := range []string{"session", "projects", "issues", "comments", "claims", "transactions"} {
-		parent := &cobra.Command{Use: family, Short: map[string]string{"session": "Inspect or change session preferences", "projects": "Create and discover project containers", "issues": "Track work, state and relationships", "comments": "Discuss issues with durable comments", "claims": "Reserve issues with expiring work claims", "transactions": "Reconcile uncertain mutation outcomes"}[family], RunE: missingCommand}
-		verbs := map[string]string{"session": "get set unset", "projects": "create get list update history", "issues": "create get list update close reopen link unlink history", "comments": "create get list update history", "claims": "acquire get list renew release", "transactions": "status"}[family]
+	for _, family := range []string{"session", "projects", "issues", "milestones", "comments", "claims", "transactions"} {
+		parent := &cobra.Command{Use: family, Short: map[string]string{"session": "Inspect or change session preferences", "projects": "Create and discover project containers", "issues": "Track work, state and relationships", "milestones": "Group project issues into named worksets", "comments": "Discuss issues with durable comments", "claims": "Reserve issues with expiring work claims", "transactions": "Reconcile uncertain mutation outcomes"}[family], RunE: missingCommand}
+		verbs := map[string]string{"session": "get set unset", "projects": "create get list update history", "issues": "create get list update close reopen link unlink history", "milestones": "create get list update history", "comments": "create get list update history", "claims": "acquire get list renew release", "transactions": "status"}[family]
 		for _, verb := range strings.Fields(verbs) {
 			c := &cobra.Command{Use: verb + commandUsage(family, verb), Short: commandSummary(family, verb), Run: run, Example: commandExample(family, verb)}
 			c.Long = commandLong(family, verb)
@@ -196,6 +196,12 @@ func rejectFlags(c *cobra.Command, names ...string) error {
 }
 
 func customizeFlags(c *cobra.Command, family, verb string) {
+	if family == "milestones" && verb == "create" {
+		c.Flags().Lookup("issue").Usage = "Existing issue `REF` to include in this milestone (repeatable within each item)"
+	}
+	if family == "issues" && verb == "list" {
+		c.Flags().Lookup("milestone").Usage = "Milestone `REF` whose members to include; requires project scope"
+	}
 	if family == "comments" && (verb == "create" || verb == "list") {
 		c.Flags().Lookup("issue").Usage = "Owning issue `ISSUE_REF`"
 		if verb == "create" {
@@ -242,6 +248,8 @@ func customizeFlags(c *cobra.Command, family, verb string) {
 		}
 		if family == "issues" {
 			values = append(values, "labels", "assignee", "parent")
+		} else if family == "milestones" {
+			values = append(values, "issues")
 		}
 		f.Usage = "Clear `FIELD` (repeatable): " + strings.Join(values, ", ")
 		c.RegisterFlagCompletionFunc("clear", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
