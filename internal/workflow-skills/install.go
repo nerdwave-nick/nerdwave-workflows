@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 )
 
-var suite = strings.Fields("lit planner clarify modeling challenge consult research prototype to-spec to-tickets impl triage codebase what i-have-adhd")
+var suite = strings.Fields("lit planner clarify modeling challenge consult research prototype to-spec to-tickets impl triage codebase what i-have-adhd orchestrate")
 var retired = strings.Fields("wayfinder grilling domain-modeling codebase-design grill-with-docs")
 
 const start = "<!-- BEGIN lit managed -->"

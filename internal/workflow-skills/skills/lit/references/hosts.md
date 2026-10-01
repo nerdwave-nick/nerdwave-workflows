@@ -9,7 +9,7 @@ reads vendor configuration-root overrides. For a custom parent directory, use
 `/parent/.codex` and `/parent/.claude`, not `/parent` itself. `--path` is required
 only with custom scope. Both `--scope` and `--agent` are required.
 
-The installer copies all fifteen skills into each host's `skills` directory,
+The installer copies all sixteen skills into each host's `skills` directory,
 adds a bounded managed block to `AGENTS.md` or `CLAUDE.md`, and records version 1
 ownership in `.lit-skills.json`. Both destinations are preflighted before writes.
 Each host has its own transaction; an unexpected filesystem failure may leave the

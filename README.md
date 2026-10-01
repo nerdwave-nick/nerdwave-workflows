@@ -16,7 +16,7 @@ and each repository can participate in multiple projects. Explicit work claims
 and lease renewal coordinate concurrent coding agents; renewal is user/agent driven.
 
 The initial implementation includes the Go service, command-line client, and
-fifteen agent skills for Codex and Claude. Use the installed executable help for
+sixteen agent skills for Codex and Claude. Use the installed executable help for
 command syntax. See [build, installation, and manual update instructions](docs/installation.md)
 for supported binaries, per-user installation, foreground operation, and the
 optional systemd user unit. Build or install with the standard Go toolchain:

@@ -67,6 +67,15 @@ resuming or retrying uncertain mutations.
 
 ## Checkpoint and finish
 
+When a coordinator explicitly dispatches this ticket through `$orchestrate`,
+use its confirmed assignment instead of proposing a standalone ticket. Still
+reread the issue and acquire and maintain your own claim under your own client.
+Read [coordinated worker protocol](../orchestrate/references/protocol.md):
+verify the bounded scope, commit and report evidence, release your own claim,
+and stop. Leave integration and ticket closure to the coordinator. Outside
+that explicit dispatch, this skill remains the standalone one-ticket workflow
+below.
+
 For cross-repository work, interruption, or return from a handoff, read
 [Interrupt and resume implementation](references/resume.md) before checkpointing
 or resuming. It covers partial commits, failed hooks, pending tracker updates,
