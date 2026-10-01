@@ -71,6 +71,9 @@ func (a *App) markdownResult(r Result) ([]byte, error) {
 						v = len(ids)
 					}
 				}
+				if key == "progress" {
+					v = milestoneProgressSummary(v)
+				}
 				cells[i] = humanValue(v)
 			}
 			markdownRow(&b, cells)

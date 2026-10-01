@@ -15,7 +15,9 @@ func queryFlags(resource string) []string {
 	case "projects":
 		out = append(out, "title", "repository-ref")
 	case "issues":
-		out = append(out, "title", "parent", "state", "labels-all", "labels-any", "labels-none", "assignee", "blocked", "claimed", "owner-client-id")
+		out = append(out, "title", "parent", "state", "labels-all", "labels-any", "labels-none", "assignee", "blocked", "claimed", "owner-client-id", "milestone")
+	case "milestones":
+		out = append(out, "title")
 	case "comments":
 		out = append(out, "author")
 	}
@@ -26,6 +28,9 @@ func querySet(k string) bool {
 }
 func (a *App) queryValue(q map[string]any, k string, vs []string, project string) error {
 	key := strings.ReplaceAll(k, "-", "_")
+	if k == "milestone" {
+		key = "milestone_id"
+	}
 	if querySet(k) {
 		q[key] = vs
 		return nil

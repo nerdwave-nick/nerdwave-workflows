@@ -27,6 +27,9 @@ func (a *App) markdownDocument(rows []any) ([]byte, bool, error) {
 		shape = protocol.Issue{}
 	case "comments":
 		shape = protocol.Comment{}
+	case "milestones":
+		shape = protocol.Milestone{}
+		bodyKey = "body"
 	default:
 		return nil, false, nil
 	}
@@ -55,7 +58,7 @@ func (a *App) markdownDocument(rows []any) ([]byte, bool, error) {
 	}
 	metadata := make(map[string]any, len(fields)-1)
 	for key, value := range fields {
-		if key != bodyKey {
+		if key != bodyKey && !(a.Args.Command == "milestones" && key == "progress") {
 			metadata[key] = value
 		}
 	}
