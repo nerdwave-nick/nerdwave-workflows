@@ -115,6 +115,8 @@ func (s *Server) matchesQuery(q ProjectQuery, r any, state RecordState) (bool, e
 		if q.Author != "" && p.Author != q.Author {
 			return false, nil
 		}
+	case protocol.Milestone:
+		title, body = p.Title, p.Body
 	}
 	if q.Title != "" && IssueTitleKey(q.Title) != IssueTitleKey(title) {
 		return false, nil

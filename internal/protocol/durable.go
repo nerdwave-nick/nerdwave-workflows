@@ -31,13 +31,16 @@ type ProjectSet struct {
 	ProjectID      *string   `json:"project_id,omitempty"`
 	IssueID        *string   `json:"issue_id,omitempty"`
 	ParentID       **string  `json:"parent_id,omitempty"`
+	IssueIDs       *[]string `json:"issue_ids,omitempty"`
 }
 type ProjectMembers struct {
-	Blocks         []string `json:"blocks,omitempty"`
-	BlockedBy      []string `json:"blocked_by,omitempty"`
-	Related        []string `json:"related,omitempty"`
-	RepositoryRefs []string `json:"repository_refs,omitempty"`
-	Labels         []string `json:"labels,omitempty"`
+	Blocks         []string        `json:"blocks,omitempty"`
+	BlockedBy      []string        `json:"blocked_by,omitempty"`
+	Related        []string        `json:"related,omitempty"`
+	RepositoryRefs []string        `json:"repository_refs,omitempty"`
+	Labels         []string        `json:"labels,omitempty"`
+	IssueIDs       []string        `json:"issue_ids,omitempty"`
+	Fields         map[string]bool `json:"-"`
 }
 type Operation struct {
 	Type   string         `json:"type"`
@@ -81,6 +84,7 @@ type ProjectInput struct {
 	Content          *string         `json:"content,omitempty"`
 	RepositoryRefs   []string        `json:"repository_refs,omitempty"`
 	ExpectedRevision *int64          `json:"expected_revision,omitempty"`
+	IssueIDs         []string        `json:"issue_ids,omitempty"`
 	Set              ProjectSet      `json:"set,omitempty"`
 	Clear            []string        `json:"clear,omitempty"`
 	Add              ProjectMembers  `json:"add,omitempty"`
@@ -113,6 +117,20 @@ type Project struct {
 	RepositoryRefs []string `json:"repository_refs"`
 	IssueIDs       []string `json:"issue_ids"`
 }
+
+// Milestone is a named project-local workset. Progress is a service read projection,
+// not part of this durable record.
+type Milestone struct {
+	SchemaVersion int      `json:"schema_version"`
+	ID            string   `json:"id"`
+	Revision      int64    `json:"revision"`
+	CreatedAt     string   `json:"created_at"`
+	UpdatedAt     string   `json:"updated_at"`
+	Title         string   `json:"title"`
+	Body          string   `json:"body"`
+	ProjectID     string   `json:"project_id"`
+	IssueIDs      []string `json:"issue_ids"`
+}
 type ChangedObject struct {
 	Type           string `json:"type"`
 	ID             string `json:"id"`
@@ -127,6 +145,14 @@ type MutationResult struct {
 
 // Canonical clones its input, normalizes only unordered sets, and retains text bytes.
 func Canonical(in Intent) ([]byte, string, error) {
+	for _, op := range in.Operations {
+		if e := validateOperationFields(op); e != nil {
+			return nil, "", e
+		}
+		if in.Force && op.Type == "milestones" {
+			return nil, "", fmt.Errorf("force is inapplicable to milestones")
+		}
+	}
 	b, e := json.Marshal(in)
 	if e != nil {
 		return nil, "", e
@@ -165,7 +191,10 @@ func Canonical(in Intent) ([]byte, string, error) {
 		if e := validateOperationFields(*o); e != nil {
 			return nil, "", e
 		}
-		for _, p := range []*[]string{&o.Add.RepositoryRefs, &o.Remove.RepositoryRefs, o.Set.RepositoryRefs, &o.Add.Labels, &o.Remove.Labels, o.Set.Labels, &o.Add.Blocks, &o.Remove.Blocks, &o.Add.BlockedBy, &o.Remove.BlockedBy, &o.Add.Related, &o.Remove.Related} {
+		if v.Force && o.Type == "milestones" {
+			return nil, "", fmt.Errorf("force is inapplicable to milestones")
+		}
+		for _, p := range []*[]string{&o.Add.RepositoryRefs, &o.Remove.RepositoryRefs, o.Set.RepositoryRefs, &o.Add.Labels, &o.Remove.Labels, o.Set.Labels, &o.Add.Blocks, &o.Remove.Blocks, &o.Add.BlockedBy, &o.Remove.BlockedBy, &o.Add.Related, &o.Remove.Related, &o.Add.IssueIDs, &o.Remove.IssueIDs, o.Set.IssueIDs} {
 			if p == nil {
 				continue
 			}
@@ -252,6 +281,10 @@ func (p *ProjectMembers) UnmarshalJSON(b []byte) error {
 		return e
 	}
 	*p = ProjectMembers(v)
+	p.Fields = map[string]bool{}
+	for k := range fields {
+		p.Fields[k] = true
+	}
 	return nil
 }
 func (p *ProjectInput) UnmarshalJSON(b []byte) error {
@@ -290,10 +323,10 @@ func (p ProjectInput) MarshalJSON() ([]byte, error) {
 	if emptySet(p.Set) && !p.Fields["set"] {
 		delete(fields, "set")
 	}
-	if len(p.Add.RepositoryRefs) == 0 && len(p.Add.Labels) == 0 && len(p.Add.Blocks)+len(p.Add.BlockedBy)+len(p.Add.Related) == 0 && !p.Fields["add"] {
+	if len(p.Add.RepositoryRefs) == 0 && len(p.Add.Labels) == 0 && len(p.Add.Blocks)+len(p.Add.BlockedBy)+len(p.Add.Related)+len(p.Add.IssueIDs) == 0 && !p.Fields["add"] {
 		delete(fields, "add")
 	}
-	if len(p.Remove.RepositoryRefs) == 0 && len(p.Remove.Labels) == 0 && len(p.Remove.Blocks)+len(p.Remove.BlockedBy)+len(p.Remove.Related) == 0 && !p.Fields["remove"] {
+	if len(p.Remove.RepositoryRefs) == 0 && len(p.Remove.Labels) == 0 && len(p.Remove.Blocks)+len(p.Remove.BlockedBy)+len(p.Remove.Related)+len(p.Remove.IssueIDs) == 0 && !p.Fields["remove"] {
 		delete(fields, "remove")
 	}
 	return json.Marshal(fields)
