@@ -26,7 +26,7 @@ Use the relevant short recipe:
 - [Find, claim, and read work](references/work.md).
 - [Checkpoint, recover, and finish](references/recovery.md).
 
-The initial suite includes all fifteen agreed skills and the operations used by
+The initial suite includes all sixteen agreed skills and the operations used by
 these recipes. Check executable help for the installed version; if it lacks a
 required capability, report the version mismatch rather than starting unclaimed
 implementation.

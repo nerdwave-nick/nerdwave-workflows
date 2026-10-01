@@ -9,11 +9,20 @@ import (
 
 func TestBundleContainsDeployableSuiteOnly(t *testing.T) {
 	bundle := Bundle()
-	expected := []string{"lit", "planner", "clarify", "modeling", "challenge", "consult", "research", "prototype", "to-spec", "to-tickets", "impl", "triage", "codebase", "what", "i-have-adhd"}
+	expected := []string{"lit", "planner", "clarify", "modeling", "challenge", "consult", "research", "prototype", "to-spec", "to-tickets", "impl", "triage", "codebase", "what", "i-have-adhd", "orchestrate"}
 	for _, name := range expected {
 		content, err := fs.ReadFile(bundle, "skills/"+name+"/SKILL.md")
 		if err != nil || len(content) == 0 {
 			t.Errorf("missing skill %s: %v", name, err)
+		}
+	}
+	for _, name := range []string{
+		"skills/orchestrate/agents/openai.yaml",
+		"skills/orchestrate/references/protocol.md",
+	} {
+		content, err := fs.ReadFile(bundle, name)
+		if err != nil || len(content) == 0 {
+			t.Errorf("missing orchestrate resource %s: %v", name, err)
 		}
 	}
 	if _, err := fs.ReadFile(bundle, "AGENTS_MD_TEMPLATE.md"); err != nil {

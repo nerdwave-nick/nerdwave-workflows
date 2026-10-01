@@ -3,6 +3,7 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -10,6 +11,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	workflowskills "github.com/nerdwave-nick/nerdwave-workflows/internal/workflow-skills"
 )
 
 // TestGoDistributionWalkthrough exercises the installed public executables from
@@ -72,7 +75,7 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 			call(append([]string{"setup-skills"}, args...)...)
 		}
 	}
-	expected := []string{"lit", "planner", "clarify", "modeling", "challenge", "consult", "research", "prototype", "to-spec", "to-tickets", "impl", "triage", "codebase", "what", "i-have-adhd"}
+	expected := []string{"lit", "planner", "clarify", "modeling", "challenge", "consult", "research", "prototype", "to-spec", "to-tickets", "impl", "triage", "codebase", "what", "i-have-adhd", "orchestrate"}
 	for _, parent := range []string{repo1, home, custom} {
 		for _, host := range []string{"codex", "claude"} {
 			hostRoot := filepath.Join(parent, "."+host)
@@ -86,6 +89,29 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 				if err != nil || len(b) == 0 {
 					t.Fatalf("skill %s: %v", name, err)
 				}
+			}
+			if err := fs.WalkDir(workflowskills.Bundle(), "skills/orchestrate", func(name string, entry fs.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+				if entry.IsDir() {
+					return nil
+				}
+				rel := strings.TrimPrefix(name, "skills/orchestrate/")
+				want, err := fs.ReadFile(workflowskills.Bundle(), name)
+				if err != nil {
+					return err
+				}
+				got, err := os.ReadFile(filepath.Join(skills, "orchestrate", filepath.FromSlash(rel)))
+				if err != nil {
+					return err
+				}
+				if !bytes.Equal(got, want) {
+					return fmt.Errorf("installed orchestrate resource differs from bundle: %s", rel)
+				}
+				return nil
+			}); err != nil {
+				t.Fatal(err)
 			}
 			for _, name := range []string{"planner", "to-spec", "to-tickets", "triage", "what", "i-have-adhd"} {
 				b, err := os.ReadFile(filepath.Join(skills, name, "SKILL.md"))
@@ -176,5 +202,5 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 	if err != nil || len(mappings) != 4 {
 		t.Fatal("checkout mappings", mappings, err)
 	}
-	t.Log("PASS: standard Go install; source-free offline setup all scopes/both hosts/15 skills; real service; four isolated sessions; cross-checkout resume/mappings; claims/checkpoints/closure")
+	t.Log("PASS: standard Go install; source-free offline setup all scopes/both hosts/16 skills; real service; four isolated sessions; cross-checkout resume/mappings; claims/checkpoints/closure")
 }
