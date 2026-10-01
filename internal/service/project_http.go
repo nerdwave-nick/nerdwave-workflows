@@ -33,6 +33,7 @@ type ProjectQuery struct {
 	Type          string          `json:"type"`
 	ProjectID     string          `json:"project_id,omitempty"`
 	IssueID       string          `json:"issue_id,omitempty"`
+	MilestoneID   string          `json:"milestone_id,omitempty"`
 	AllProjects   bool            `json:"all_projects,omitempty"`
 	Sort          string          `json:"sort,omitempty"`
 	Direction     string          `json:"direction,omitempty"`
@@ -90,7 +91,7 @@ func (s *Server) projectRoute(w http.ResponseWriter, r *http.Request, c protocol
 			if len(req.Targets) > 0 {
 				return true, invalid("targets conflict with query")
 			}
-			if req.Query.Type == "issues" && req.Query.ProjectID == "" && !req.Query.AllProjects && c.ProjectID != nil {
+			if (req.Query.Type == "issues" || req.Query.Type == "milestones") && req.Query.ProjectID == "" && !req.Query.AllProjects && c.ProjectID != nil {
 				req.Query.ProjectID = *c.ProjectID
 			}
 			page, e := s.recordPage(*req.Query)

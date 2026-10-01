@@ -34,9 +34,11 @@ type Comment struct {
 	IssueID       string `json:"issue_id"`
 }
 
-func ResourceType(t string) bool { return t == "projects" || t == "issues" || t == "comments" }
+func ResourceType(t string) bool {
+	return t == "projects" || t == "issues" || t == "comments" || t == "milestones"
+}
 func emptySet(s ProjectSet) bool {
-	return s.Title == nil && s.Description == nil && s.RepositoryRefs == nil && s.Body == nil && s.State == nil && s.Labels == nil && s.Assignee == nil && s.Author == nil && s.ProjectID == nil && s.IssueID == nil && s.ParentID == nil
+	return s.Title == nil && s.Description == nil && s.RepositoryRefs == nil && s.Body == nil && s.State == nil && s.Labels == nil && s.Assignee == nil && s.Author == nil && s.ProjectID == nil && s.IssueID == nil && s.ParentID == nil && s.IssueIDs == nil
 }
 func validateOperationFields(o Operation) error {
 	s := o.Set
@@ -44,6 +46,12 @@ func validateOperationFields(o Operation) error {
 		if len(o.Add.Blocks)+len(o.Remove.Blocks)+len(o.Add.BlockedBy)+len(o.Remove.BlockedBy)+len(o.Add.Related)+len(o.Remove.Related) > 0 {
 			return fmt.Errorf("inapplicable relationships")
 		}
+	}
+	if o.Type != "milestones" && (s.IssueIDs != nil || len(o.Add.IssueIDs)+len(o.Remove.IssueIDs) > 0 || o.Add.Fields["issue_ids"] || o.Remove.Fields["issue_ids"]) {
+		return fmt.Errorf("inapplicable milestone memberships")
+	}
+	if o.Type == "milestones" && (o.Add.Fields["blocks"] || o.Add.Fields["blocked_by"] || o.Add.Fields["related"] || o.Remove.Fields["blocks"] || o.Remove.Fields["blocked_by"] || o.Remove.Fields["related"] || o.Add.Fields["labels"] || o.Remove.Fields["labels"] || o.Add.Fields["repository_refs"] || o.Remove.Fields["repository_refs"]) {
+		return fmt.Errorf("inapplicable fields for milestones")
 	}
 	for _, pair := range [][2][]string{{o.Add.Blocks, o.Remove.Blocks}, {o.Add.BlockedBy, o.Remove.BlockedBy}, {o.Add.Related, o.Remove.Related}} {
 		for _, a := range pair[0] {
@@ -70,6 +78,8 @@ func validateOperationFields(o Operation) error {
 		bad = s.Description != nil || s.RepositoryRefs != nil || s.Author != nil || s.IssueID != nil || len(o.Add.RepositoryRefs)+len(o.Remove.RepositoryRefs) > 0 || (o.Kind == "update" && s.ProjectID != nil)
 	case "comments":
 		bad = s.Title != nil || s.Description != nil || s.RepositoryRefs != nil || s.State != nil || s.Labels != nil || s.Assignee != nil || s.ProjectID != nil || s.ParentID != nil || len(o.Add.RepositoryRefs)+len(o.Remove.RepositoryRefs)+len(o.Add.Labels)+len(o.Remove.Labels) > 0 || (o.Kind == "update" && s.IssueID != nil)
+	case "milestones":
+		bad = s.Description != nil || s.RepositoryRefs != nil || s.State != nil || s.Labels != nil || s.Assignee != nil || s.Author != nil || s.IssueID != nil || s.ParentID != nil || len(o.Add.RepositoryRefs)+len(o.Remove.RepositoryRefs)+len(o.Add.Labels)+len(o.Remove.Labels)+len(o.Add.Blocks)+len(o.Remove.Blocks)+len(o.Add.BlockedBy)+len(o.Remove.BlockedBy)+len(o.Add.Related)+len(o.Remove.Related) > 0 || (o.Kind == "update" && s.ProjectID != nil)
 	}
 	if bad {
 		return fmt.Errorf("inapplicable fields for %s %s", o.Type, o.Kind)
@@ -82,6 +92,32 @@ func validateOperationFields(o Operation) error {
 			if a == b {
 				return fmt.Errorf("contradictory label changes")
 			}
+		}
+	}
+	if s.IssueIDs != nil && len(o.Add.IssueIDs)+len(o.Remove.IssueIDs) > 0 {
+		return fmt.Errorf("issue membership replacement conflicts with member changes")
+	}
+	for _, ids := range [][]string{o.Add.IssueIDs, o.Remove.IssueIDs} {
+		for _, id := range ids {
+			if !ValidUUID(id) {
+				return fmt.Errorf("invalid milestone issue ID")
+			}
+		}
+	}
+	for _, a := range o.Add.IssueIDs {
+		for _, b := range o.Remove.IssueIDs {
+			if a == b {
+				return fmt.Errorf("contradictory milestone membership changes")
+			}
+		}
+	}
+	if s.IssueIDs != nil {
+		seen := map[string]bool{}
+		for _, id := range *s.IssueIDs {
+			if !ValidUUID(id) || seen[id] {
+				return fmt.Errorf("invalid milestone issue set")
+			}
+			seen[id] = true
 		}
 	}
 	return nil
@@ -108,6 +144,10 @@ func (p ProjectInput) ValidateResourceShape(resource, kind string) error {
 			for _, k := range []string{"project", "parent", "title", "state", "labels", "assignee"} {
 				allowed[k] = true
 			}
+		} else if resource == "milestones" {
+			for _, k := range []string{"project", "title", "issue_ids"} {
+				allowed[k] = true
+			}
 		} else {
 			allowed["issue"] = true
 			allowed["author"] = true
@@ -123,6 +163,9 @@ func (p ProjectInput) ValidateResourceShape(resource, kind string) error {
 			allowed["add"] = true
 			allowed["remove"] = true
 			allowed["parent"] = true
+		} else if resource == "milestones" {
+			allowed["add"] = true
+			allowed["remove"] = true
 		}
 	}
 	for k := range p.Fields {

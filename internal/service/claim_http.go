@@ -5,6 +5,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -201,6 +202,67 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 
 // Live projection is deliberately outside durable Issue and history codecs.
 func (s *Server) readProjection(r any) (any, error) {
+	if m, ok := r.(protocol.Milestone); ok {
+		state, e := s.ReadRecordState()
+		if e != nil {
+			return nil, e
+		}
+		memberSet := map[string]bool{}
+		for _, id := range m.IssueIDs {
+			memberSet[id] = true
+		}
+		progress := struct {
+			Total            int      `json:"total"`
+			Open             int      `json:"open"`
+			Closed           int      `json:"closed"`
+			BlockedOpen      int      `json:"blocked_open"`
+			ClaimedOpen      int      `json:"claimed_open"`
+			ExternalBlockers []string `json:"external_blockers"`
+		}{Total: len(m.IssueIDs), ExternalBlockers: []string{}}
+		external := map[string]bool{}
+		for _, id := range m.IssueIDs {
+			issue, ok := state[recordKey("issues", id)].(protocol.Issue)
+			if !ok {
+				return nil, invalid("missing milestone member")
+			}
+			if issue.State == "closed" {
+				progress.Closed++
+				continue
+			}
+			progress.Open++
+			blocked := false
+			for _, blockerID := range issue.BlockedBy {
+				blocker, ok := state[recordKey("issues", blockerID)].(protocol.Issue)
+				if !ok {
+					return nil, invalid("missing blocker")
+				}
+				if blocker.State == "open" {
+					blocked = true
+					if !memberSet[blockerID] {
+						external[blockerID] = true
+					}
+				}
+			}
+			if blocked {
+				progress.BlockedOpen++
+			}
+			claim, e := s.LiveClaim(id)
+			if e != nil {
+				return nil, e
+			}
+			if claim != nil {
+				progress.ClaimedOpen++
+			}
+		}
+		for id := range external {
+			progress.ExternalBlockers = append(progress.ExternalBlockers, id)
+		}
+		sort.Strings(progress.ExternalBlockers)
+		return struct {
+			protocol.Milestone
+			Progress any `json:"progress"`
+		}{m, progress}, nil
+	}
 	p, ok := r.(protocol.Issue)
 	if !ok {
 		return r, nil

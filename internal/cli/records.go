@@ -15,6 +15,9 @@ func parseRecordArgs(argv []string, a Args) (Args, error) {
 	a.Groups = append(a.Groups, group)
 	global := map[string]bool{"session": true, "endpoint": true, "format": true, "timeout": true, "project": true}
 	boundary := "issue"
+	if a.Command == "milestones" {
+		boundary = "milestone"
+	}
 	if a.Command == "comments" && a.Verb != "create" {
 		boundary = "comment"
 	}
@@ -25,14 +28,20 @@ func parseRecordArgs(argv []string, a Args) (Args, error) {
 		fields = []string{boundary, "content", "content-file", "file"}
 		if a.Command == "issues" {
 			fields = append(fields, "parent", "state", "label", "assignee")
+		} else if a.Command == "milestones" {
+			fields = append(fields, "issue")
 		} else {
 			fields = append(fields, "author")
 		}
 	case "update":
-		fields = []string{boundary, "content", "content-file", "clear", "revision", "file"}
+		fields = []string{"content", "content-file", "clear", "revision", "file"}
 		if a.Command == "issues" {
+			fields = append(fields, boundary)
 			fields = append(fields, "title", "parent", "state", "assignee", "add-label", "remove-label")
+		} else if a.Command == "milestones" {
+			fields = append(fields, "title", "add-issue", "remove-issue")
 		} else {
+			fields = append(fields, boundary)
 			fields = append(fields, "author")
 		}
 	case "close", "reopen":
@@ -52,7 +61,7 @@ func parseRecordArgs(argv []string, a Args) (Args, error) {
 		allowed["all"] = false
 		if a.Command == "issues" {
 			allowed["all-projects"] = false
-		} else {
+		} else if a.Command == "comments" {
 			fields = append(fields, "issue")
 		}
 	case "history":
@@ -61,7 +70,7 @@ func parseRecordArgs(argv []string, a Args) (Args, error) {
 	default:
 		return a, fmt.Errorf("unknown resource command")
 	}
-	if a.Verb == "create" || a.Verb == "update" || a.Verb == "close" || a.Verb == "reopen" || a.Verb == "link" || a.Verb == "unlink" {
+	if a.Command != "milestones" && (a.Verb == "create" || a.Verb == "update" || a.Verb == "close" || a.Verb == "reopen" || a.Verb == "link" || a.Verb == "unlink") {
 		allowed["force"] = false
 	}
 	for _, k := range fields {
@@ -120,7 +129,7 @@ func parseRecordArgs(argv []string, a Args) (Args, error) {
 			}
 			dst = group
 		}
-		repeat := querySet(k) || k == "to" || k == "label" || k == "add-label" || k == "remove-label" || k == "clear"
+		repeat := querySet(k) || k == "to" || k == "label" || k == "add-label" || k == "remove-label" || k == "clear" || a.Command == "milestones" && a.Verb == "create" && k == "issue" || k == "add-issue" || k == "remove-issue"
 		if len(dst[k]) > 0 && !repeat {
 			return a, fmt.Errorf("duplicate flag --%s", k)
 		}
@@ -197,6 +206,9 @@ func (a *App) recordInputs() ([]protocol.ProjectInput, error) {
 		groups = []map[string][]string{{}}
 	}
 	boundary := "issue"
+	if resource == "milestones" {
+		boundary = "milestone"
+	}
 	if resource == "comments" && kind != "create" {
 		boundary = "comment"
 	}
@@ -249,6 +261,13 @@ func (a *App) recordInputs() ([]protocol.ProjectInput, error) {
 				item.State = value("state")
 				item.Labels = g["label"]
 				item.Assignee = value("assignee")
+			} else if resource == "milestones" {
+				item.Title = value(boundary)
+				ids, err := a.resolveIssueRefs(g["issue"], a.projectRef())
+				if err != nil {
+					return nil, err
+				}
+				item.IssueIDs = ids
 			} else {
 				item.Issue = one(boundary)
 				item.Author = value("author")
@@ -284,11 +303,28 @@ func (a *App) recordInputs() ([]protocol.ProjectInput, error) {
 			return nil, fmt.Errorf("each item requires --%s", boundary)
 		}
 		if len(targets) == 0 {
+			if resource == "milestones" {
+				return nil, fmt.Errorf("milestone targets required")
+			}
 			return nil, fmt.Errorf("issue/comment targets required")
 		}
 		for _, target := range targets {
 			x := item
 			x.Target = target
+			if resource == "milestones" && (len(g["add-issue"]) > 0 || len(g["remove-issue"]) > 0) {
+				project, err := a.resolveMilestoneProject(target, a.projectRef())
+				if err != nil {
+					return nil, err
+				}
+				x.Add.IssueIDs, err = a.resolveIssueRefs(g["add-issue"], project)
+				if err != nil {
+					return nil, err
+				}
+				x.Remove.IssueIDs, err = a.resolveIssueRefs(g["remove-issue"], project)
+				if err != nil {
+					return nil, err
+				}
+			}
 			items = append(items, x)
 		}
 	}
@@ -410,6 +446,29 @@ func (a *App) records() (Result, error) {
 				q["project_id"] = project
 			}
 		}
+		if resource == "milestones" {
+			raw, exists := q["project_id"]
+			if exists {
+				scoped, ok := raw.(string)
+				if !ok || scoped == "" {
+					return result, protocol.E(400, "invalid_arguments", "file project_id must be a nonempty string")
+				}
+				if a.Args.Has("project") && scoped != project {
+					var explicit, queryProject protocol.Project
+					if e := a.Call("GET", "/v1/projects/"+url.PathEscape(project), nil, nil, &explicit, false); e != nil {
+						return result, e
+					}
+					if e := a.Call("GET", "/v1/projects/"+url.PathEscape(scoped), nil, nil, &queryProject, false); e != nil {
+						return result, e
+					}
+					if explicit.ID != queryProject.ID {
+						return result, protocol.E(400, "invalid_arguments", "file scope conflicts with explicit project")
+					}
+				}
+			} else if project != "" {
+				q["project_id"] = project
+			}
+		}
 		e := a.Call("POST", "/v1/snapshots", map[string]any{"schema_version": 1, "query": q}, nil, &result, false)
 		return result, e
 	case "history":
@@ -417,7 +476,7 @@ func (a *App) records() (Result, error) {
 			return result, protocol.E(400, "invalid_arguments", "history requires one owner")
 		}
 		path := "/v1/" + resource + "/" + url.PathEscape(a.Args.Positionals[0])
-		if resource == "issues" && project != "" {
+		if (resource == "issues" || resource == "milestones") && project != "" {
 			path += "?project_id=" + url.QueryEscape(project)
 		}
 		var owner struct {
@@ -443,9 +502,16 @@ func (a *App) records() (Result, error) {
 				return result, protocol.E(400, "invalid_arguments", "history detail conflicts with pagination")
 			}
 			var v any
-			e := a.Call("GET", path+"/"+url.PathEscape(hash), nil, nil, &v, false)
+			detailPath := path + "/" + url.PathEscape(hash)
+			if resource == "milestones" && project != "" {
+				detailPath += "?project_id=" + url.QueryEscape(project)
+			}
+			e := a.Call("GET", detailPath, nil, nil, &v, false)
 			result.Items = []any{v}
 			return result, e
+		}
+		if resource == "milestones" && project != "" {
+			q.Set("project_id", project)
 		}
 		if len(q) > 0 {
 			path += "?" + q.Encode()

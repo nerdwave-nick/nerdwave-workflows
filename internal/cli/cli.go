@@ -153,7 +153,7 @@ func validateArgs(a Args) error {
 	if a.Command == "claims" {
 		return validateClaimArgs(a)
 	}
-	if a.Command == "grep" || a.Command == "projects" || a.Command == "issues" || a.Command == "comments" {
+	if a.Command == "grep" || a.Command == "projects" || a.Command == "issues" || a.Command == "comments" || a.Command == "milestones" {
 		return nil
 	}
 	if len(a.Positionals) > 0 {
@@ -515,7 +515,7 @@ func (a *App) dispatch() (Result, error) {
 		return a.grep()
 	case "projects":
 		return a.projects()
-	case "issues", "comments":
+	case "issues", "comments", "milestones":
 		return a.records()
 	case "disconnect":
 		var v struct {

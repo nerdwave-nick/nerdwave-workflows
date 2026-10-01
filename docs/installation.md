@@ -35,7 +35,7 @@ supported Go interface, not an already published release.
 
 ## Install embedded workflow skills
 
-The installed CLI contains the fifteen workflow skills and their instruction
+The installed CLI contains the sixteen workflow skills and their instruction
 template. Setup is offline and needs no source checkout or tracker connection:
 
 ```sh

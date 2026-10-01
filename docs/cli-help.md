@@ -6,6 +6,7 @@ Use focused help at any command level:
 lit help
 lit projects help
 lit projects list --help
+lit milestones create --help
 lit projects list -h
 lit projects list help
 lit help projects list
@@ -91,6 +92,19 @@ Comment creation uses `comments create --issue ISSUE_REF --content TEXT`; repeat
 `--issue` to begin another comment, even for the same owner. Comment updates use
 `comments update --comment COMMENT_REF --content TEXT`. JSON creation items
 retain their `issue` property.
+
+Milestones are project-scoped named worksets. Create a milestone with
+`milestones create --project REF --milestone TITLE`; repeat `--milestone` to
+start another item and repeat `--issue REF` for its members. Members resolve
+inside the selected project and are stored as stable issue IDs. Update a
+milestone with `milestones update REF` and `--add-issue` or `--remove-issue`;
+`--clear issues` removes all membership. Flag inputs and typed `--file` JSON are
+separate atomic modes. `issues list --project REF --milestone M1` filters to
+members of that milestone and cannot span projects. Milestone list tables show
+member counts and current progress; progress is a read-only projection. A single
+milestone `get --format markdown` exports durable YAML metadata and the exact
+body, without transient progress. Mutations use the same prepare/transaction
+boundary as other records.
 
 CLI argument errors retain the JSON error contract with `--format json` and exit
 code 2. Service and reconciliation outcomes retain their existing exit codes.

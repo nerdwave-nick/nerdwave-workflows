@@ -57,9 +57,11 @@ func validateQueryFields(q ProjectQuery) error {
 	case "projects":
 		allowed["repository_ref"] = true
 	case "issues":
-		for _, k := range []string{"project_id", "all_projects", "parent_id", "state", "labels_all", "labels_any", "labels_none", "assignee", "blocked", "claimed", "owner_client_id"} {
+		for _, k := range []string{"project_id", "all_projects", "parent_id", "state", "labels_all", "labels_any", "labels_none", "assignee", "blocked", "claimed", "owner_client_id", "milestone_id"} {
 			allowed[k] = true
 		}
+	case "milestones":
+		allowed["project_id"] = true
 	case "comments":
 		allowed["issue_id"] = true
 		allowed["author"] = true
@@ -86,12 +88,14 @@ func (s *Server) resolveRecord(typ, selector, project string) (any, error) {
 		return s.ResolveIssue(selector, project)
 	case "comments":
 		return s.ResolveComment(selector)
+	case "milestones":
+		return s.ResolveMilestone(selector, project)
 	}
 	return nil, invalid("unsupported resource")
 }
 func (s *Server) recordRoute(w http.ResponseWriter, r *http.Request, c protocol.Client) (bool, error) {
 	typ := ""
-	for _, t := range []string{"issues", "comments"} {
+	for _, t := range []string{"issues", "comments", "milestones"} {
 		if r.URL.Path == "/v1/"+t || strings.HasPrefix(r.URL.Path, "/v1/"+t+"/") {
 			typ = t
 			break
@@ -114,7 +118,7 @@ func (s *Server) recordRoute(w http.ResponseWriter, r *http.Request, c protocol.
 			if e != nil {
 				return true, e
 			}
-			if q.ProjectID == "" && typ == "issues" && !q.AllProjects {
+			if q.ProjectID == "" && (typ == "issues" || typ == "milestones") && !q.AllProjects {
 				q.ProjectID = project
 			}
 			page, e := s.recordPage(q)
@@ -151,7 +155,13 @@ func (s *Server) recordRoute(w http.ResponseWriter, r *http.Request, c protocol.
 			return true, e
 		}
 		if len(segments) == 2 && segments[1] == "history" {
-			page, e := s.projectHistoryPage(typ+":"+segments[0], hs, r.URL.Query())
+			values := r.URL.Query()
+			// A milestone's project_id scopes the owner lookup above; it is not a
+			// history pagination option. Strip it only after that scoped resolution.
+			if typ == "milestones" {
+				values.Del("project_id")
+			}
+			page, e := s.projectHistoryPage(typ+":"+segments[0], hs, values)
 			if e != nil {
 				return true, e
 			}
@@ -247,11 +257,11 @@ func (s *Server) recordPage(q ProjectQuery) (ProjectPage, error) {
 		}
 	}
 	out := ProjectPage{Items: []any{}}
-	if q.Type != "issues" && q.Type != "comments" && q.Type != "projects" {
+	if q.Type != "issues" && q.Type != "comments" && q.Type != "projects" && q.Type != "milestones" {
 		return out, invalid("invalid query type")
 	}
 	if q.Type == "issues" {
-		if q.IssueID != "" || q.AllProjects && q.ProjectID != "" {
+		if q.IssueID != "" || q.AllProjects && q.ProjectID != "" || (q.AllProjects || q.Fields["all_projects"]) && (q.MilestoneID != "" || q.Fields["milestone_id"]) {
 			return out, invalid("inapplicable issue scope")
 		}
 		if !q.AllProjects {
@@ -264,6 +274,31 @@ func (s *Server) recordPage(q ProjectQuery) (ProjectPage, error) {
 			}
 			q.ProjectID = p.ID
 		}
+		if q.MilestoneID != "" {
+			if q.ProjectID == "" {
+				return out, invalid("milestone filter requires project scope")
+			}
+			m, e := s.ResolveMilestone(q.MilestoneID, q.ProjectID)
+			if e != nil {
+				return out, e
+			}
+			q.MilestoneID = m.ID
+		}
+		if q.Fields["milestone_id"] && q.MilestoneID == "" {
+			return out, invalid("milestone_id must not be empty")
+		}
+	} else if q.Type == "milestones" {
+		if q.AllProjects || q.Fields["all_projects"] || q.IssueID != "" || q.MilestoneID != "" || q.ParentID != nil || q.State != "" || len(q.LabelsAll)+len(q.LabelsAny)+len(q.LabelsNone) > 0 || q.Assignee != nil || q.Blocked != nil || q.Claimed != nil || q.OwnerClientID != "" || q.Author != "" || len(q.RepositoryRef) > 0 {
+			return out, invalid("inapplicable milestone filter")
+		}
+		if q.ProjectID == "" {
+			return out, invalid("select a project for milestone query")
+		}
+		p, e := s.ResolveProject(q.ProjectID)
+		if e != nil {
+			return out, e
+		}
+		q.ProjectID = p.ID
 	} else if q.Type == "comments" {
 		if q.ProjectID != "" || q.AllProjects {
 			return out, invalid("comments require issue scope")
@@ -320,8 +355,18 @@ func (s *Server) recordPage(q ProjectQuery) (ProjectPage, error) {
 			if !q.AllProjects && p.ProjectID != q.ProjectID {
 				continue
 			}
+			if q.MilestoneID != "" {
+				m, ok := state[recordKey("milestones", q.MilestoneID)].(protocol.Milestone)
+				if !ok || !contains(m.IssueIDs, p.ID) {
+					continue
+				}
+			}
 		case protocol.Comment:
 			if p.IssueID != q.IssueID {
+				continue
+			}
+		case protocol.Milestone:
+			if p.ProjectID != q.ProjectID {
 				continue
 			}
 		}
@@ -345,6 +390,8 @@ func (s *Server) recordPage(q ProjectQuery) (ProjectPage, error) {
 				return IssueTitleKey(p.Title)
 			case protocol.Project:
 				return strings.ToLower(p.Title)
+			case protocol.Milestone:
+				return IssueTitleKey(p.Title)
 			}
 		}
 		return created

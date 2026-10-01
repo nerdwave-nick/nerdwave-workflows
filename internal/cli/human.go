@@ -85,6 +85,9 @@ func tableColumns(command string) (keys, headers []string) {
 	case "issues":
 		keys = []string{"title", "state", "assignee", "labels", "id"}
 		headers = []string{"TITLE", "STATE", "ASSIGNEE", "LABELS", "ID"}
+	case "milestones":
+		keys = []string{"title", "issue_ids", "progress", "revision", "id"}
+		headers = []string{"TITLE", "MEMBERS", "PROGRESS", "REVISION", "ID"}
 	case "comments":
 		keys = []string{"author", "body", "issue_id", "id"}
 		headers = []string{"AUTHOR", "COMMENT", "ISSUE ID", "ID"}
@@ -120,6 +123,9 @@ func (a *App) humanTable(b *bytes.Buffer, rows []any, columns int) bool {
 				if items, ok := value.([]any); ok {
 					value = json.Number(strconv.Itoa(len(items)))
 				}
+			}
+			if key == "progress" {
+				value = milestoneProgressSummary(value)
 			}
 			cells[i] = strings.ReplaceAll(humanValue(value), "\n", ` \n `)
 			if key != "id" && !strings.HasSuffix(key, "_id") {
@@ -165,6 +171,20 @@ func (a *App) humanTable(b *bytes.Buffer, rows []any, columns int) bool {
 		fmt.Fprintf(b, "Some text shortened; use lit %s get ID for full details (with the same --session).\n", a.Args.Command)
 	}
 	return true
+}
+
+func milestoneProgressSummary(value any) string {
+	progress, ok := value.(map[string]any)
+	if !ok {
+		return humanValue(value)
+	}
+	number := func(key string) string {
+		if v, ok := progress[key]; ok {
+			return humanValue(v)
+		}
+		return "0"
+	}
+	return number("closed") + "/" + number("total") + " closed; " + number("open") + " open; " + number("blocked_open") + " blocked"
 }
 
 func humanDetail(b *bytes.Buffer, value any, indent string) {

@@ -163,6 +163,9 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 			result.IssueID = owner.ID
 			result.IssueTitle = owner.Title
 			fields = append(fields, [2]string{"body", v.Body})
+		case protocol.Milestone:
+			result.ProjectID = v.ProjectID
+			fields = append(fields, [2]string{"title", v.Title}, [2]string{"body", v.Body})
 		}
 		if !q.Scope.AllProjects && result.ProjectID != q.Scope.ProjectID {
 			continue
