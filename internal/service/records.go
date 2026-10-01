@@ -296,7 +296,7 @@ func (s *Server) ResolveMilestone(selector, project string) (protocol.Milestone,
 		if projectID != "" && m.ProjectID != projectID {
 			continue
 		}
-		byTitle := mode != "id:" && IssueTitleKey(selector) == IssueTitleKey(m.Title)
+		byTitle := mode != "id:" && projectID != "" && m.ProjectID == projectID && IssueTitleKey(selector) == IssueTitleKey(m.Title)
 		byID := mode != "title:" && validIDPrefix && strings.HasPrefix(strings.ReplaceAll(m.ID, "-", ""), idPrefix)
 		if byTitle || byID {
 			found = append(found, m)

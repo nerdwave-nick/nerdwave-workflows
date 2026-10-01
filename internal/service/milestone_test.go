@@ -181,6 +181,28 @@ func TestMilestoneMembershipGuardsAndProjectValidation(t *testing.T) {
 	}
 }
 
+func TestMilestoneSelectorKeepsUnscopedHexAsIDOnly(t *testing.T) {
+	s, c := projectTestServer(t, t.TempDir())
+	defer s.Store.Close()
+	project := protocol.UUID()
+	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/selectors")}))
+	const prefixID = "abcdef12-0000-4000-8000-000000000001"
+	const hexTitleID = "ffffffff-0000-4000-8000-000000000002"
+	executeRecordTest(t, s, c, prepareMilestoneTest(t, s, c, project, protocol.ProjectInput{ID: prefixID, Title: textPointer("Prefix record")}))
+	executeRecordTest(t, s, c, prepareMilestoneTest(t, s, c, project, protocol.ProjectInput{ID: hexTitleID, Title: textPointer("abcdef12")}))
+	if _, err := s.ResolveMilestone("deadbeef", ""); err == nil {
+		t.Fatal("unscoped hex-looking selector resolved as a title")
+	}
+	got, err := s.ResolveMilestone("abcdef12", "")
+	if err != nil || got.ID != prefixID {
+		t.Fatalf("hex selector should resolve only as UUID prefix: %#v %v", got, err)
+	}
+	got, err = s.ResolveMilestone("title:abcdef12", project)
+	if err != nil || got.ID != hexTitleID {
+		t.Fatalf("typed title with project failed: %#v %v", got, err)
+	}
+}
+
 func TestMilestoneProjectionBlockersClaimsHistoryAndRestart(t *testing.T) {
 	root := t.TempDir()
 	s, c := projectTestServer(t, root)
