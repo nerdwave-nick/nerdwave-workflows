@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var commonQueryFlags = []string{"id", "q", "created-after", "created-before", "updated-after", "updated-before"}
+var commonQueryFlags = []string{"id", "query", "created-after", "created-before", "updated-after", "updated-before"}
 
 func queryFlags(resource string) []string {
 	out := append([]string{}, commonQueryFlags...)
@@ -30,6 +30,9 @@ func (a *App) queryValue(q map[string]any, k string, vs []string, project string
 	key := strings.ReplaceAll(k, "-", "_")
 	if k == "milestone" {
 		key = "milestone_id"
+	}
+	if k == "query" {
+		key = "q" // the service's query field keeps its short wire name
 	}
 	if querySet(k) {
 		q[key] = vs

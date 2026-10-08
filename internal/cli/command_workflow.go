@@ -31,6 +31,7 @@ func addWorkflowCommands(root *cobra.Command, out, errOut io.Writer, code *int) 
 		for _, k := range fields {
 			addFlag(c, c.Flags(), k, true)
 		}
+		addRecordCompletions(c, "workflow-session", action)
 		c.Long = c.Short + ".\nOutput is a JSON association record; --format does not apply."
 		if action == "run" {
 			c.Long = c.Short + ".\nOutput is forwarded from the tracker command; the adapter supplies --format json.\nHelp and version retain their own text output.\nUse the direct lit tracker command for CLI or Markdown output."

@@ -23,6 +23,18 @@ func (a Args) One(key string) string {
 }
 func (a Args) Has(key string) bool { _, ok := a.Values[key]; return ok }
 
+// expandShorthand rewrites -q, -q=TEXT and -qTEXT (pflag's shorthand forms) to
+// --query. Call it only where a flag may appear: a flag value stays literal.
+func expandShorthand(v string) string {
+	if !strings.HasPrefix(v, "-q") {
+		return v
+	}
+	if rest := v[2:]; rest != "" {
+		return "--query=" + strings.TrimPrefix(rest, "=")
+	}
+	return "--query"
+}
+
 // Parse keeps global flags separate from resource-specific semantics. Resource
 // slices extend allowedFlags; repeating item fields is handled by their parser.
 func Parse(argv []string) (Args, error) {
@@ -87,6 +99,7 @@ func parseArgs(argv []string) (Args, error) {
 			a.Positionals = append(a.Positionals, argv[i+1:]...)
 			break
 		}
+		v = expandShorthand(v)
 		if !strings.HasPrefix(v, "--") {
 			if !seenCommand && v == a.Command {
 				seenCommand = true

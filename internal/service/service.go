@@ -151,7 +151,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var e error
-	if r.URL.Path == "/v1/connect" && r.Method == "POST" {
+	if strings.HasPrefix(r.URL.Path, "/v1/completions/") {
+		e = s.completionRoute(w, r)
+	} else if r.URL.Path == "/v1/connect" && r.Method == "POST" {
 		e = s.connect(w, r)
 	} else {
 		id := r.Header.Get("X-Lit-Client-ID")

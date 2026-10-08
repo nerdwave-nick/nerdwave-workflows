@@ -47,6 +47,7 @@ func parseProjectArgs(argv []string, a Args) (Args, error) {
 			a.Positionals = append(a.Positionals, argv[i+1:]...)
 			break
 		}
+		v = expandShorthand(v)
 		if !strings.HasPrefix(v, "--") {
 			if !seenCommand && v == "projects" {
 				seenCommand = true

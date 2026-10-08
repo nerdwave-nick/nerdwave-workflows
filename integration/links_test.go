@@ -29,13 +29,13 @@ func TestDependencyFrontierCLI(t *testing.T) {
 	run(t, cwd, state, 2, "issues", "link", "--from", "Work", "--to", "Blocker", "--relation", "blocks")
 	run(t, cwd, state, 0, "issues", "unlink", "--from", "Work", "--to", "Blocker", "--relation", "blocked-by")
 	frontier(1)
-	r := run(t, cwd, state, 0, "projects", "list", "--repository-ref", "repo-a", "--q", "FRONTIER")
+	r := run(t, cwd, state, 0, "projects", "list", "--repository-ref", "repo-a", "-q", "FRONTIER")
 	if len(r["items"].([]any)) != 1 {
 		t.Fatal(r)
 	}
 	r = run(t, cwd, state, 0, "issues", "list", "--all-projects", "--sort", "title", "--limit", "1")
 	cursor := r["next_cursor"].(string)
-	run(t, cwd, state, 2, "issues", "list", "--all-projects", "--sort", "title", "--limit", "1", "--cursor", cursor, "--q", "work")
+	run(t, cwd, state, 2, "issues", "list", "--all-projects", "--sort", "title", "--limit", "1", "--cursor", cursor, "--query", "work")
 	r = run(t, cwd, state, 0, "issues", "list", "--all-projects", "--sort", "title", "--limit", "1", "--cursor", cursor)
 	if len(r["items"].([]any)) != 1 {
 		t.Fatal(r)

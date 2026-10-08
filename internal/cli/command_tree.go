@@ -37,6 +37,9 @@ func newCommandTree(argv []string, out, errOut io.Writer, code *int) *cobra.Comm
 	for _, name := range []string{"session", "endpoint", "format", "timeout", "project"} {
 		addFlag(root, root.PersistentFlags(), name, true)
 	}
+	if err := root.RegisterFlagCompletionFunc("project", completeRecords("projects")); err != nil {
+		panic(err)
+	}
 	run := func(c *cobra.Command, args []string) { *code = runTracker(argv, out, errOut) }
 	for _, name := range []string{"connect", "disconnect", "version"} {
 		c := &cobra.Command{Use: name, Short: map[string]string{"connect": "Initialize or resume a client session", "disconnect": "End a connected client session", "version": "Print the binary version"}[name], Run: run, Args: cobra.NoArgs}
@@ -63,6 +66,7 @@ func newCommandTree(argv []string, out, errOut io.Writer, code *int) *cobra.Comm
 				}
 			}
 			customizeFlags(c, family, verb)
+			addRecordCompletions(c, family, verb)
 			parent.AddCommand(c)
 		}
 		root.AddCommand(parent)
@@ -74,6 +78,7 @@ func newCommandTree(argv []string, out, errOut io.Writer, code *int) *cobra.Comm
 	for _, k := range []string{"case-sensitive", "all-projects", "n"} {
 		addFlag(grep, grep.Flags(), k, false)
 	}
+	addRecordCompletions(grep, "grep", "")
 	root.AddCommand(grep)
 	setup := &cobra.Command{Use: "setup-skills", Short: "Install embedded skills for Codex or Claude", Long: setupSkillsHelp, Example: "  lit setup-skills --scope local --agent both\n  lit setup-skills --scope custom --path /work/project --agent codex", Args: cobra.NoArgs, PreRunE: func(c *cobra.Command, args []string) error {
 		return rejectFlags(c, "session", "endpoint", "format", "timeout", "project")
@@ -95,6 +100,7 @@ func newCommandTree(argv []string, out, errOut io.Writer, code *int) *cobra.Comm
 	root.AddCommand(setup)
 	addWorkflowCommands(root, out, errOut, code)
 	addCommandRequirements(root)
+	addLocalCompletions(root)
 	return root
 }
 func missingCommand(c *cobra.Command, args []string) error {
@@ -114,6 +120,7 @@ func commandHelpAlias(root *cobra.Command, args []string) []string {
 			break
 		}
 		if strings.HasPrefix(a, "-") {
+			a = expandShorthand(a)
 			name := strings.TrimPrefix(strings.SplitN(a, "=", 2)[0], "--")
 			flag := c.Flags().Lookup(name)
 			if flag == nil {
@@ -156,8 +163,8 @@ func addFlag(c *cobra.Command, f *pflag.FlagSet, name string, value bool) {
 		panic("missing flag description: " + name)
 	}
 	if value {
-		if name == "context" {
-			f.StringArrayP(name, "C", nil, description)
+		if shorthand := map[string]string{"context": "C", "query": "q"}[name]; shorthand != "" {
+			f.StringArrayP(name, shorthand, nil, description)
 		} else {
 			f.StringArray(name, nil, description)
 		}

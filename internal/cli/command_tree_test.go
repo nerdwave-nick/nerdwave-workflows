@@ -82,6 +82,9 @@ func TestHelpAliasDoesNotConsumeData(t *testing.T) {
 		{[]string{"grep", "help"}, []string{"grep", "help"}},
 		{[]string{"grep", "--", "--help"}, []string{"grep", "--", "--help"}},
 		{[]string{"issues", "create", "--issue", "help"}, []string{"issues", "create", "--issue", "help"}},
+		{[]string{"issues", "list", "-q", "x", "help"}, []string{"issues", "list", "-q", "x", "--help"}},
+		{[]string{"issues", "list", "-q", "help"}, []string{"issues", "list", "-q", "help"}},
+		{[]string{"issues", "list", "-qx", "help"}, []string{"issues", "list", "-qx", "--help"}},
 		{[]string{"workflow-session", "run", "--", "projects", "help"}, []string{"workflow-session", "run", "--", "projects", "help"}},
 	} {
 		root := newCommandTree(nil, &bytes.Buffer{}, &bytes.Buffer{}, new(int))

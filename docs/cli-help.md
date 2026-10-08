@@ -29,8 +29,9 @@ explicit `--session` as a filter. Actor defaults, saved-client resume, input-fil
 alternatives, project selection and flag conflicts are explained in the relevant
 command help.
 
-Help and completion are offline: they do not
-connect to lit, create sessions or install skills.
+Help, completion-script generation, and command/flag-name completion are offline.
+Existing-record completion queries the service's metadata-only completion endpoints;
+it never creates or reconnects a session or installs skills.
 
 ## Shell completion
 
@@ -66,7 +67,43 @@ lit completion powershell | Out-String | Invoke-Expression
 `lit completion SHELL --help` explains persistent installation for your shell.
 Command names, flag names and fixed values such as `--format cli|markdown|json`,
 `--state open|closed`, `--scope local|user|custom`, and `--agent codex|claude|both`
-complete without contacting the service. Project and issue names are not fetched.
+complete without contacting the service. Existing project, issue, milestone and
+comment references are fetched on demand, including reference flags such as
+`--project`, `--issue`, `--parent`, `--from` and `--to`. Flags for naming new
+records do not fetch existing records.
+
+Tab on a command that takes no operands, such as `lit projects list`, offers
+that command's flags with descriptions; flags already given are omitted unless
+they are repeatable. `--session` offers saved logical session names (described
+by their endpoint), `--endpoint` offers the default and saved sessions' endpoints,
+and `--for` offers common lease lengths, all from local state without contacting
+the service. Only path-valued flags (`--file`, `--content-file`, `--cli`, and
+directory-valued `--path`) complete file names. Free-form values such as titles,
+labels, limits, timestamps and search patterns offer no suggestions.
+
+Record completion works without a session. The endpoint follows `--endpoint`,
+`LIT_ENDPOINT`, an optional session's remembered endpoint, then the localhost
+default. An explicit project or issue project qualifier takes precedence over
+an optional connected session's saved project. Unknown or disconnected clients
+provide no defaults. Invalid explicit project selectors do not fall back to all
+projects. Ordinary commands still require their usual session.
+
+With no selected project, issue candidates are project-qualified, for example
+`feat/api:Fix timeout`. Press Tab on an empty argument to discover them, or type
+a project prefix such as `feat/api:` to narrow them. Milestones use UUIDs with
+title/project descriptions when no project is selected; comments always use IDs.
+Within a selected project, issue and milestone titles complete directly. `id:`
+and `title:` selectors are supported, and titles that would be interpreted as
+IDs, options, help or qualified references are offered with `title:`. The shell
+handles quoting spaces and punctuation.
+
+One metadata request has a one-second deadline. Unavailable services, invalid
+state or a mismatched saved service identity produce no record suggestions and
+do not fall back to filenames. Up to 100 matching candidates are displayed
+(or the service's lower page maximum); type a longer prefix to narrow the result.
+There is no persistent completion cache or local state write.
+
+See the [completion API](completion-api.md) for the metadata projection and limits.
 
 ## Batch and literal arguments
 
