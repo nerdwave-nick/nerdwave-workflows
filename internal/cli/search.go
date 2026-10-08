@@ -12,7 +12,7 @@ import (
 
 func parseSearchArgs(argv []string, a Args) (Args, error) {
 	a.Verb = ""
-	cmd := grammar.Find("grep")
+	cmd := command("grep")
 	seenCommand, literal := false, false
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]

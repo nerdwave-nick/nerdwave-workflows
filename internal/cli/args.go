@@ -29,11 +29,11 @@ func (a Args) Has(key string) bool { _, ok := a.Values[key]; return ok }
 // the global flags only, so that dispatch reports them.
 func commandGrammar(a Args) *nwcli.Command {
 	for _, path := range [][]string{{a.Command, a.Verb}, {a.Command}} {
-		if c := grammar.Find(path...); c != nil && len(c.Commands) == 0 && path[len(path)-1] != "" {
+		if c := command(path...); c != nil && len(c.Commands) == 0 && path[len(path)-1] != "" {
 			return c
 		}
 	}
-	return &nwcli.Command{Flags: flags(globals)}
+	return command()
 }
 
 // Parse keeps global flags separate from resource-specific semantics. Resource

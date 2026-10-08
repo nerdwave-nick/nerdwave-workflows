@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 )
 
 func TestCommandRequirementsHelp(t *testing.T) {
@@ -66,24 +66,16 @@ func TestCommandRequirementsHelp(t *testing.T) {
 }
 
 func TestEveryApplicationLeafHasRequirementsAndForms(t *testing.T) {
-	var out bytes.Buffer
-	code := 0
-	root := newCommandTree(nil, &out, &out, &code)
-	var visit func(*cobra.Command)
-	visit = func(c *cobra.Command) {
-		if c.HasSubCommands() {
-			for _, child := range c.Commands() {
-				visit(child)
-			}
+	grammar.Walk(func(path []string, c *nwcli.Command) {
+		if len(c.Commands) > 0 || path[0] == "completion" {
 			return
 		}
 		for _, want := range []string{"Requirements:", "Valid forms:"} {
-			if !strings.Contains(c.Long, want) {
-				t.Errorf("%s lacks %s", c.CommandPath(), want)
+			if !strings.Contains(c.Description, want) {
+				t.Errorf("lit %s lacks %s", strings.Join(path, " "), want)
 			}
 		}
-	}
-	visit(root)
+	})
 }
 
 // Validate representative advertised alternatives with the actual domain parser

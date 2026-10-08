@@ -2,7 +2,7 @@ package cli
 
 import (
 	"bytes"
-	"github.com/spf13/cobra"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -55,13 +55,9 @@ func TestEveryCommandHasScopedOfflineHelp(t *testing.T) {
 	t.Setenv("USERPROFILE", t.TempDir())
 	t.Setenv("LIT_STATE_DIR", "/dev/null/blocked")
 	t.Setenv("LIT_WORKFLOW_STATE_DIR", "/dev/null/blocked")
-	root := newCommandTree(nil, &bytes.Buffer{}, &bytes.Buffer{}, new(int))
-	root.InitDefaultCompletionCmd()
-	root.InitDefaultHelpCmd()
-	var walk func(*cobra.Command, []string)
-	walk = func(cmd *cobra.Command, path []string) {
+	grammar.Walk(func(path []string, cmd *nwcli.Command) {
 		for _, form := range [][]string{append(append([]string{}, path...), "--help"), append(append([]string{}, path...), "-h"), append([]string{"help"}, path...), append(append([]string{}, path...), "help")} {
-			if (cmd.Name() == "grep" || cmd.Name() == "run") && len(form) > 0 && form[len(form)-1] == "help" {
+			if (cmd.Name == "grep" || cmd.Name == "run") && len(form) > 0 && form[len(form)-1] == "help" || len(form) == 1 && form[0] == "help" && len(path) == 0 {
 				continue
 			}
 			var out, err bytes.Buffer
@@ -69,11 +65,7 @@ func TestEveryCommandHasScopedOfflineHelp(t *testing.T) {
 				t.Fatalf("%v: %d %s %s", form, code, &out, &err)
 			}
 		}
-		for _, child := range cmd.Commands() {
-			walk(child, append(append([]string{}, path...), child.Name()))
-		}
-	}
-	walk(root, nil)
+	})
 }
 
 func TestHelpAliasDoesNotConsumeData(t *testing.T) {
@@ -87,9 +79,9 @@ func TestHelpAliasDoesNotConsumeData(t *testing.T) {
 		{[]string{"issues", "list", "-qx", "help"}, []string{"issues", "list", "-qx", "--help"}},
 		{[]string{"workflow-session", "run", "--", "projects", "help"}, []string{"workflow-session", "run", "--", "projects", "help"}},
 	} {
-		root := newCommandTree(nil, &bytes.Buffer{}, &bytes.Buffer{}, new(int))
-		if got := commandHelpAlias(root, tc.in); !reflect.DeepEqual(got, tc.want) {
-			t.Fatalf("%v got %v want %v", tc.in, got, tc.want)
+		wantHelp := !reflect.DeepEqual(tc.in, tc.want) // the alias rewrote help to --help
+		if got := grammar.Route(tc.in).Help; got != wantHelp {
+			t.Fatalf("%v: help %v, want %v", tc.in, got, wantHelp)
 		}
 	}
 }

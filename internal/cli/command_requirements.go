@@ -1,71 +1,9 @@
 package cli
 
-import (
-	"strings"
+import "strings"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-)
-
-// These descriptions document the domain parsers, including conditional inputs.
-// Cobra's unconditional required flags cannot express saved selections or batches.
-func addCommandRequirements(root *cobra.Command) {
-	root.Long += "\nSession selection: --session > LIT_SESSION. Unnamed connect creates a random session.\nRun a leaf command's --help\nfor required inputs, optional flags and valid combinations."
-	var visit func(*cobra.Command)
-	visit = func(c *cobra.Command) {
-		c.LocalNonPersistentFlags().VisitAll(func(f *pflag.Flag) {
-			if !f.Hidden && !strings.HasPrefix(f.Usage, "Required") && !strings.HasPrefix(f.Usage, "Conditional") {
-				f.Usage = "Optional. " + f.Usage
-			}
-		})
-		c.PersistentFlags().VisitAll(func(f *pflag.Flag) {
-			if !f.Hidden && !strings.HasPrefix(f.Usage, "Required") && !strings.HasPrefix(f.Usage, "Conditional") {
-				f.Usage = "Optional. " + f.Usage
-			}
-		})
-		if c.HasSubCommands() {
-			for _, child := range c.Commands() {
-				visit(child)
-			}
-			return
-		}
-		path := strings.TrimPrefix(c.CommandPath(), "lit ")
-		requirements, forms := requirementsFor(path)
-		if path == "connect" {
-			requirements += "\n--session-id-only prints only the logical session name plus a newline on success, not the client UUID.\nIt overrides cli/markdown/json rendering for this call; --format and --output-format retain their normal preference effects.\nErrors and warnings go to stderr; failures return a nonzero status."
-			forms += "\nlit connect [--session NAME] --session-id-only"
-			c.Example += "\n  set -gx LIT_SESSION (lit connect --session-id-only)  # fish, current shell"
-		}
-		c.Long = strings.TrimSpace(c.Long)
-		if c.Long == "" {
-			c.Long = c.Short + "."
-		}
-		c.Long += "\n\nRequirements:\n  " + strings.ReplaceAll(requirements, "\n", "\n  ")
-		if refs := referenceHelp(path); refs != "" {
-			c.Long += "\n\nReferences:\n  " + strings.ReplaceAll(refs, "\n", "\n  ")
-		}
-		c.Long += "\n\nValid forms:\n  " + strings.ReplaceAll(forms, "\n", "\n  ")
-		c.Long += "\n  [] means optional; | separates alternatives; ... means repeatable."
-		if strings.Contains(forms, "FILTERS") || strings.Contains(forms, "ITEM_FLAGS") || strings.Contains(forms, "CHANGE_FLAGS") {
-			c.Long += "\n  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below."
-		}
-		for name, requirement := range flagRequirements(path) {
-			if f := c.Flags().Lookup(name); f != nil {
-				if path == "transactions status" && name == "file" {
-					f.Usage = requirement
-				} else {
-					separator := ". "
-					if requirement == "Required" {
-						separator = " "
-					}
-					f.Usage = requirement + separator + strings.TrimPrefix(strings.TrimPrefix(f.Usage, "Optional. "), "Required ")
-				}
-			}
-		}
-	}
-	visit(root)
-}
-
+// These notes document the domain parsers, including conditional inputs that a
+// flag's own description cannot express: saved selections and batches.
 const sessionRequirement = "Required session: --session NAME or LIT_SESSION; connect that session first."
 const issueScope = "Issue titles need project selection: --project REF or the session's selected project.\nIssue UUIDs and project-qualified issue references can identify existing issues without that selection."
 const contentRules = "--content and --content-file are mutually exclusive per item; stdin (-) may be read only once."
@@ -270,7 +208,7 @@ func flagRequirements(path string) map[string]string {
 			m[name] = "Optional individually; select at least one property"
 		}
 	case "transactions status":
-		m["file"] = "Optional retained request envelope PATH (not stdin or a mutation array)"
+		m["file"] = "Optional retained request envelope `PATH` (not stdin or a mutation array)"
 	}
 	if strings.HasPrefix(path, "workflow-session ") {
 		for _, name := range []string{"parent-runtime-id", "repository", "path"} {

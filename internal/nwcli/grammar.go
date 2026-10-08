@@ -39,10 +39,12 @@ type Value struct {
 
 // Flag describes one --name option of a command.
 type Flag struct {
-	Name   string
-	Short  string // optional one-letter shorthand, used as -Short
-	Switch bool   // takes no value
-	Value  Value  // the value of a non-switch flag
+	Name  string
+	Short string // optional one-letter shorthand, used as -Short
+	// Usage is the help text; a `quoted` word names the value in help.
+	Usage  string
+	Switch bool  // takes no value
+	Value  Value // the value of a non-switch flag
 	Repeat Repeat
 	// Fields declares the flags that describe the item this flag begins, which
 	// makes the flag an item flag: each occurrence begins another item, and
@@ -50,6 +52,8 @@ type Flag struct {
 	// Fields given before the first occurrence describe an implicit first item,
 	// such as the operands. Fields cannot have fields of their own.
 	Fields []Flag
+	// Inherited is set by Resolve on flags declared by an ancestor.
+	Inherited bool
 }
 
 // Unlimited is an Operands.Max meaning any number of operands.
@@ -62,14 +66,21 @@ type Operands struct {
 	Value Value
 }
 
-// Command is a node of a command tree. A command with subcommands is a group;
-// its own Flags and Operands apply when it runs without one. Flag names are
-// unique within a command, including the fields of its item flags.
+// Command is a node of a command tree. A command with subcommands is a group.
+// Flags declared on a command apply to its descendants too, except where a
+// command lists them in Without. Flag names are unique within a command,
+// including the fields of its item flags.
 type Command struct {
-	Name     string
-	Operands Operands
-	Flags    []Flag
-	Commands []*Command
+	Name        string
+	Summary     string // one line, shown in command lists
+	Description string // help text; Summary is used when empty
+	Example     string // indented example lines
+	Operands    Operands
+	Flags       []Flag
+	Without     []string // inherited flags that do not apply here or below
+	Commands    []*Command
+
+	withheld map[string]bool // set by Resolve: inherited flags removed by Without
 }
 
 // Find returns the descendant reached by following path, or nil.

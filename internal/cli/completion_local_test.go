@@ -1,15 +1,13 @@
 package cli
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 // completion splits __complete output into candidate values (descriptions
@@ -32,32 +30,29 @@ func offlineCompletion(t *testing.T) {
 
 func TestCompletionNeverFallsBackToFilesExceptPathFlags(t *testing.T) {
 	offlineCompletion(t)
-	var code int
-	root := newCommandTree(nil, io.Discard, io.Discard, &code)
-	var walk func(*cobra.Command)
-	walk = func(c *cobra.Command) {
-		for _, child := range c.Commands() {
-			walk(child)
-		}
-		if c.HasSubCommands() || c.Hidden || c.Name() == "help" || c.Name() == "completion" {
+	grammar.Walk(func(path []string, declared *nwcli.Command) {
+		if len(declared.Commands) > 0 || path[0] == "completion" {
 			return
 		}
-		path := strings.Fields(c.CommandPath())[1:]
-		if _, directive := completion(t, append(path, "")...); directive == ":0" {
+		c := command(path...)
+		argv := append([]string{}, path...)
+		if path[0] == "workflow-session" {
+			argv = append([]string{"workflow-session", "--host", "claude", "--runtime-id", "r"}, path[1:]...)
+		}
+		if _, directive := completion(t, append(argv, "")...); directive == ":0" {
 			t.Errorf("%v positional completion falls back to files", path)
 		}
-		c.Flags().VisitAll(func(f *pflag.Flag) {
-			if f.NoOptDefVal != "" || f.Hidden || f.Name == "help" {
+		c.EachFlag(func(f nwcli.Flag, _ *nwcli.Flag) {
+			if f.Switch {
 				return
 			}
-			_, directive := completion(t, append(path, "--"+f.Name, "")...)
+			_, directive := completion(t, append(argv, "--"+f.Name, "")...)
 			want := map[string]string{"file": ":0", "content-file": ":0", "cli": ":0", "path": ":16"}[f.Name]
 			if want == "" && (directive == ":0" || directive == ":16") || want != "" && directive != want {
 				t.Errorf("%v --%s: directive %s, want %s", path, f.Name, directive, map[bool]string{true: "no file completion", false: want}[want == ""])
 			}
 		})
-	}
-	walk(root)
+	})
 }
 
 func TestCompletionOffersFlagsWhenCommandTakesNoOperands(t *testing.T) {

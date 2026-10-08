@@ -17,11 +17,11 @@ func parsedCommands(t *testing.T, fn func(path []string, cmd *nwcli.Command)) {
 	t.Helper()
 	n := 0
 	grammar.Walk(func(path []string, cmd *nwcli.Command) {
-		if len(path) == 0 || len(cmd.Commands) > 0 || path[0] == "setup-skills" || path[0] == "workflow-session" {
+		if len(path) == 0 || len(cmd.Commands) > 0 || path[0] == "setup-skills" || path[0] == "workflow-session" || path[0] == "completion" {
 			return
 		}
 		n++
-		fn(path, cmd)
+		fn(path, command(path...))
 	})
 	if n < 30 {
 		t.Fatalf("only %d commands walked", n)
@@ -118,12 +118,6 @@ func shortWorks(parse func(...string) (Args, error), f nwcli.Flag) bool {
 	return err == nil
 }
 
-// completionGaps are declarations today's cobra wiring does not complete yet;
-// the grammar-driven completion engine closes them.
-var completionGaps = map[string]bool{
-	"connect --project": true, // a local copy shadows the global flag without project completion
-}
-
 // Value kinds must describe what completion offers for each flag and operand.
 func TestGrammarValueKindsMatchCompletion(t *testing.T) {
 	offlineCompletion(t)
@@ -146,18 +140,16 @@ func TestGrammarValueKindsMatchCompletion(t *testing.T) {
 		}
 		return "", ":4"
 	}
-	grammar.Walk(func(path []string, cmd *nwcli.Command) {
-		if len(path) == 0 || len(cmd.Commands) > 0 {
+	grammar.Walk(func(path []string, declared *nwcli.Command) {
+		if len(path) == 0 || len(declared.Commands) > 0 || path[0] == "completion" {
 			return
 		}
+		cmd := command(path...)
 		prefix := append([]string{}, path...)
 		if path[0] == "workflow-session" {
 			prefix = append([]string{"workflow-session", "--host", "claude", "--runtime-id", "r"}, path[1:]...)
 		}
 		check := func(what string, args []string, v nwcli.Value) {
-			if completionGaps[strings.Join(path, " ")+" "+what] {
-				return
-			}
 			values, directive := completion(t, append(append([]string{}, prefix...), args...)...)
 			wantValues, wantDirective := want(v)
 			if strings.Join(values, ",") != wantValues || wantDirective != "" && directive != wantDirective {

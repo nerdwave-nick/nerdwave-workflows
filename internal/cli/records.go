@@ -14,7 +14,7 @@ func parseRecordArgs(argv []string, a Args) (Args, error) {
 	seenCommand, seenVerb := false, false
 	group := map[string][]string{}
 	a.Groups = append(a.Groups, group)
-	cmd := grammar.Find(a.Command, a.Verb)
+	cmd := command(a.Command, a.Verb)
 	if a.Verb == "" || cmd == nil {
 		switch {
 		case a.Verb == "close" || a.Verb == "reopen":

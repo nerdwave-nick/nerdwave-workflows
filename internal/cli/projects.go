@@ -17,7 +17,7 @@ func parseProjectArgs(argv []string, a Args) (Args, error) {
 	seenCommand, seenVerb := false, false
 	group := map[string][]string{}
 	a.Groups = append(a.Groups, group)
-	cmd := grammar.Find("projects", a.Verb)
+	cmd := command("projects", a.Verb)
 	if a.Verb == "" || cmd == nil {
 		return a, fmt.Errorf("expected projects create, get, list, update, or history")
 	}

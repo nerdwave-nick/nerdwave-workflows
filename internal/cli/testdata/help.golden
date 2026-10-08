@@ -1,0 +1,2063 @@
+== lit --help
+Track projects, issues, comments and work claims. Commands never start the service.
+Start with connect [--session NAME], then select a project with session set.
+Session selection: --session > LIT_SESSION. Unnamed connect creates a random session.
+Run a leaf command's --help
+for required inputs, optional flags and valid combinations.
+
+Usage:
+  lit [flags]
+  lit [command]
+
+Available Commands:
+  claims           Reserve issues with expiring work claims
+  comments         Discuss issues with durable comments
+  completion       Generate the autocompletion script for the specified shell
+  connect          Initialize or resume a client session
+  disconnect       End a connected client session
+  grep             Search current content using a literal substring
+  help             Help about any command
+  issues           Track work, state and relationships
+  milestones       Group project issues into named worksets
+  projects         Create and discover project containers
+  session          Inspect or change session preferences
+  setup-skills     Install embedded skills for Codex or Claude
+  transactions     Reconcile uncertain mutation outcomes
+  version          Print the binary version
+  workflow-session Bind explicit agent runtime sessions to lit clients
+
+Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+  -h, --help               help for lit
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+
+Use "lit [command] --help" for more information about a command.
+== lit connect --help
+Initialize or resume a client session.
+
+Requirements:
+  Required flags: none.
+  Session: --session > LIT_SESSION; with neither, create a random throwaway session name.
+  An explicitly supplied --session must not be empty; omit it to use the fallback.
+  The result includes items[0].logical_session (Logical session in readable output). Reuse the returned name explicitly with --session NAME (or set LIT_SESSION).
+  Throwaway describes the generated name; it does not imply automatic expiry or deletion.
+  New sessions default to the system username (then USER, then human) and actor kind human.
+  An existing local session resumes its saved client; --client-id adopts an existing client
+  or must match that saved client. Optional actor/runtime/project flags update its properties.
+  --format also saves the output preference here unless --output-format is explicit.
+  Endpoint is optional: --endpoint > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411.
+  --session-id-only prints only the logical session name plus a newline on success, not the client UUID.
+  It overrides cli/markdown/json rendering for this call; --format and --output-format retain their normal preference effects.
+  Errors and warnings go to stderr; failures return a nonzero status.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+
+Valid forms:
+  lit connect
+  lit connect [--session NAME] [--actor-name NAME] [--actor-kind human|agent]
+  lit connect [--session NAME] --client-id UUID [--project REF]
+  lit connect [--session NAME] --format json --output-format cli
+  lit connect [--session NAME] --session-id-only
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit connect [flags]
+
+Examples:
+  lit connect --session my-session
+  set -gx LIT_SESSION (lit connect --session-id-only)  # fish, current shell
+
+Flags:
+      --actor-kind KIND         Optional. Actor KIND: human or agent
+      --actor-name NAME         Optional. Actor display NAME
+      --client-id UUID          Optional. Existing client UUID to resume
+  -h, --help                    help for connect
+      --output-format FORMAT    Optional. Session output FORMAT: cli, markdown or json
+      --project REF             Optional. Project REF: title or UUID; otherwise session selection
+      --runtime-session-id ID   Optional. Vendor runtime session ID
+      --runtime-vendor NAME     Optional. Runtime vendor NAME
+      --session-id-only         Optional. Print only the logical session name and a newline on success; overrides output formatting, not saved preferences
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit disconnect --help
+End a connected client session.
+
+Requirements:
+  Required flag when LIT_SESSION is unset: --session NAME.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+Valid forms:
+  lit disconnect [--session NAME]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit disconnect [flags]
+
+Examples:
+  lit disconnect --session my-session
+
+Flags:
+  -h, --help   help for disconnect
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit version --help
+Print the binary version.
+
+Requirements:
+  Required flags: none. No session or service is needed.
+
+Valid forms:
+  lit version
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit version [flags]
+
+Examples:
+  lit version
+
+Flags:
+  -h, --help   help for version
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit session --help
+Inspect or change session preferences
+
+Usage:
+  lit session [flags]
+  lit session [command]
+
+Available Commands:
+  get         Read session and current properties
+  set         Set explicit session properties
+  unset       Clear optional session properties
+
+Flags:
+  -h, --help   help for session
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+
+Use "lit session [command] --help" for more information about a command.
+== lit session get --help
+Read session and current properties.
+
+Requirements:
+  No required property flags. Without property flags, show every session property, including the logical session name
+  and its distinct client UUID. --session-id selects only the client UUID.
+  Property selectors take no values.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+Valid forms:
+  lit session get [--session NAME] [--project] [--actor-name] [--status]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit session get [flags]
+
+Examples:
+  lit session get --session my-session
+
+Flags:
+      --actor-kind           Optional. Show session property actor-kind
+      --actor-name           Optional. Show session property actor-name
+  -h, --help                 help for get
+      --output-format        Optional. Show session property output-format
+      --project              Optional. Show session property project
+      --revision             Optional. Show session property revision
+      --runtime-session-id   Optional. Show session property runtime-session-id
+      --runtime-vendor       Optional. Show session property runtime-vendor
+      --service-id           Optional. Show session property service-id
+      --session-id           Optional. Show session property session-id
+      --status               Optional. Show session property status
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit session set --help
+Set explicit session properties.
+
+Requirements:
+  Required: at least one property flag with a value.
+  Properties: --project, --output-format, --actor-name, --actor-kind,
+  --runtime-vendor, --runtime-session-id. Multiple properties may be set together.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+
+Valid forms:
+  lit session set --project REF [--output-format cli|markdown|json]
+  lit session set --actor-name NAME --actor-kind human|agent
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit session set [flags]
+
+Examples:
+  lit session set --session my-session --project test/poc
+
+Flags:
+      --actor-kind KIND         Optional. Actor KIND: human or agent
+      --actor-name NAME         Optional. Actor display NAME
+  -h, --help                    help for set
+      --output-format FORMAT    Optional individually; select at least one property. Session output FORMAT: cli, markdown or json
+      --project REF             Optional individually; select at least one property. Project REF: title or UUID; otherwise session selection
+      --runtime-session-id ID   Optional individually; select at least one property. Vendor runtime session ID
+      --runtime-vendor NAME     Optional individually; select at least one property. Runtime vendor NAME
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit session unset --help
+Clear optional session properties.
+
+Requirements:
+  Required: at least one optional property selector (no value).
+  Choose --project, --output-format, --runtime-vendor or --runtime-session-id.
+  Actor name and kind cannot be unset.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+Valid forms:
+  lit session unset --project [--output-format]
+  lit session unset --runtime-vendor --runtime-session-id
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit session unset [flags]
+
+Examples:
+  lit session unset --session my-session --project
+
+Flags:
+      --actor-kind           Optional. Clear session property actor-kind
+      --actor-name           Optional. Clear session property actor-name
+  -h, --help                 help for unset
+      --output-format        Optional individually; select at least one property. Clear session property output-format
+      --project              Optional individually; select at least one property. Clear session property project
+      --runtime-session-id   Optional individually; select at least one property. Clear session property runtime-session-id
+      --runtime-vendor       Optional individually; select at least one property. Clear session property runtime-vendor
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit projects --help
+Create and discover project containers
+
+Usage:
+  lit projects [flags]
+  lit projects [command]
+
+Available Commands:
+  create      Create projects atomically
+  get         Read projects and current properties
+  history     Read immutable mutation history
+  list        List and filter projects
+  update      Update projects atomically
+
+Flags:
+  -h, --help   help for projects
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+
+Use "lit projects [command] --help" for more information about a command.
+== lit projects create --help
+Create projects atomically.
+Repeat the item boundary flag to submit an atomic batch, or use --file with a JSON array.
+Scalar fields may occur once per item; repeated set fields preserve input order.
+
+Requirements:
+  Required: --project-title TITLE for each flag-defined item, or --file PATH (nonempty JSON array).
+  Do not mix --file with item flags. Repeat the boundary flag before each item's fields.
+  Content is optional. --content and --content-file are mutually exclusive per item; stdin (-) may be read only once.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+Valid forms:
+  lit projects create --project-title TITLE [--content TEXT | --content-file PATH]
+  lit projects create --project-title TITLE [ITEM_FLAGS] --project-title TITLE [ITEM_FLAGS]
+  lit projects create --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit projects create [flags]
+
+Examples:
+  lit projects create --session my-session --project-title test/poc --content 'Try lit'
+
+Flags:
+      --content TEXT          Optional. UTF-8 content TEXT; conflicts with --content-file
+      --content-file PATH     Optional. Read UTF-8 content from PATH; - reads stdin once
+      --file PATH             Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+  -h, --help                  help for create
+      --project REF           Optional. Project REF: title or UUID; otherwise session selection
+      --project-title TITLE   Conditional (see valid forms). New project TITLE; repeat to begin another atomic item
+      --repository REF        Optional. Repository REF associated with this project (repeatable)
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit projects get --help
+Read projects and current properties.
+With --format markdown, one complete returned record becomes YAML frontmatter
+plus the exact original Markdown body. Duplicate selectors may return one record;
+multiple returned records use a structured report. Export each separately for documents.
+This is a read snapshot, not an import format: --content-file reads the entire file as body.
+
+Requirements:
+  Required: a project target, from REF, --project REF, or session selection.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+
+Valid forms:
+  lit projects get [REF...]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit projects get [REF...] [flags]
+
+Examples:
+  lit projects get --session my-session test/poc
+
+Flags:
+  -h, --help          help for get
+      --project REF   Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit projects list --help
+List and filter projects.
+Filters combine with AND; set filters may repeat. --all conflicts with --limit/--cursor.
+Reuse the same filters with a returned cursor. --all does not widen project scope.
+
+Requirements:
+  No required query flags.
+  Choose flag filters or a typed JSON query object: cannot combine --file with query/filter flags.
+  --all conflicts with --limit/--cursor; --all does not widen project scope.
+  Reuse the same filters with --cursor. Filters combine with AND.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+Valid forms:
+  lit projects list [FILTERS] [--limit N] [--cursor TOKEN]
+  lit projects list [FILTERS] --all
+  lit projects list --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit projects list [flags]
+
+Examples:
+  lit projects list --session my-session --limit 20
+
+Flags:
+      --all                      Optional. Return all results as one bounded snapshot; conflicts with --limit/--cursor
+      --created-after RFC3339    Optional. Inclusive creation boundary RFC3339
+      --created-before RFC3339   Optional. Exclusive creation boundary RFC3339
+      --cursor TOKEN             Optional. Continue the same query with opaque TOKEN
+      --direction DIRECTION      Optional. Sort DIRECTION: asc or desc
+      --file PATH                Optional. Input PATH: mutation JSON array or typed query object; - reads stdin once
+  -h, --help                     help for list
+      --id UUID                  Optional. Match object UUID (repeatable)
+      --limit N                  Optional. Page size N (default 100, maximum 1000 unless configured)
+      --project REF              Optional. Project REF: title or UUID; otherwise session selection
+  -q, --query TEXT               Optional. Case-insensitive content substring TEXT
+      --repository-ref REF       Optional. Match repository REF (repeatable)
+      --sort FIELD               Optional. Sort FIELD: created-at, updated-at, title
+      --title TITLE              Optional. Object TITLE (exact title filter on list)
+      --updated-after RFC3339    Optional. Inclusive update boundary RFC3339
+      --updated-before RFC3339   Optional. Exclusive update boundary RFC3339
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit projects update --help
+Update projects atomically.
+Repeat the item boundary flag to submit an atomic batch, or use --file with a JSON array.
+Scalar fields may occur once per item; repeated set fields preserve input order.
+
+Requirements:
+  Required: target(s) using one of the forms below.
+  Choose one input mode: positional targets, boundary-flag groups, or --file PATH (JSON array).
+  Do not mix --file with item flags or positional targets; grouped and positional targets cannot mix.
+  Use change flags to set, add, remove or clear fields; unchanged values are safe no-ops. --content and --content-file are mutually exclusive per item; stdin (-) may be read only once.
+  Without explicit targets, update uses --project REF or session selection.
+  Positional/selected-project mode needs a change flag or --revision to define an item.
+  CHANGE_FLAGS are the set/add/remove/clear flags listed below (for example --content TEXT).
+  Repeat the boundary flag before each item's fields; positional targets share one set of fields.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+
+Valid forms:
+  lit projects update REF... (CHANGE_FLAGS | --revision N)
+  lit projects update --project-id REF [CHANGE_FLAGS] [--revision N] [--project-id REF [CHANGE_FLAGS] [--revision N]]
+  lit projects update --file PATH
+  lit projects update [--project REF] (CHANGE_FLAGS | --revision N)
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit projects update [REF...] [flags]
+
+Examples:
+  lit projects update --session my-session test/poc --content 'Updated details'
+
+Flags:
+      --add-repository REF      Optional. Add repository REF (repeatable)
+      --clear FIELD             Optional. Clear FIELD (repeatable): content, repositories
+      --content TEXT            Optional. UTF-8 content TEXT; conflicts with --content-file
+      --content-file PATH       Optional. Read UTF-8 content from PATH; - reads stdin once
+      --file PATH               Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+  -h, --help                    help for update
+      --project REF             Optional. Project REF: title or UUID; otherwise session selection
+      --project-id REF          Conditional (see valid forms). Project REF; repeat to begin another update item
+      --remove-repository REF   Optional. Remove repository REF (repeatable)
+      --revision N              Optional. Expected object revision N; reject stale mutations
+      --title TITLE             Optional. Object TITLE (exact title filter on list)
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit projects history --help
+Read immutable mutation history.
+Use a reference (title or UUID) and pagination, or select one --request-hash.
+
+Requirements:
+  Required: a project target, from REF, --project REF, or session selection.
+  --request-hash selects one entry; pagination flags are ignored in that mode.
+  --all conflicts with --limit/--cursor.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+
+Valid forms:
+  lit projects history [REF] [--limit N] [--cursor TOKEN]
+  lit projects history [REF] --all
+  lit projects history [REF] --request-hash HASH
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit projects history [REF] [flags]
+
+Examples:
+  lit projects history --session my-session test/poc
+
+Flags:
+      --all                 Optional. Return all results as one bounded snapshot; conflicts with --limit/--cursor
+      --cursor TOKEN        Optional. Continue the same query with opaque TOKEN
+  -h, --help                help for history
+      --limit N             Optional. Page size N (default 100, maximum 1000 unless configured)
+      --project REF         Optional. Project REF: title or UUID; otherwise session selection
+      --request-hash HASH   Optional. Find history for transaction HASH
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit issues --help
+Track work, state and relationships
+
+Usage:
+  lit issues [flags]
+  lit issues [command]
+
+Available Commands:
+  close       Mark issues closed
+  create      Create issues atomically
+  get         Read issues and current properties
+  history     Read immutable mutation history
+  link        Add issue relationships atomically
+  list        List and filter issues
+  reopen      Mark issues open
+  unlink      Remove issue relationships atomically
+  update      Update issues atomically
+
+Flags:
+  -h, --help   help for issues
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+
+Use "lit issues [command] --help" for more information about a command.
+== lit issues create --help
+Create issues atomically.
+Repeat the item boundary flag to submit an atomic batch, or use --file with a JSON array.
+Scalar fields may occur once per item; repeated set fields preserve input order.
+
+Requirements:
+  Required: --issue TITLE for each flag-defined item, or --file PATH (nonempty JSON array).
+  Do not mix --file with item flags. Repeat the boundary flag before each item's fields.
+  Content is optional. --content and --content-file are mutually exclusive per item; stdin (-) may be read only once.
+  New issues require project selection: --project REF, the session's selected project,
+  or a project field in each JSON item.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  These rules apply to existing issue references such as --parent, not the new --issue title.
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit issues create --issue TITLE [--content TEXT | --content-file PATH]
+  lit issues create --issue TITLE [ITEM_FLAGS] --issue TITLE [ITEM_FLAGS]
+  lit issues create --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit issues create [flags]
+
+Examples:
+  lit issues create --session my-session --project test/poc --issue 'Verify the PoC' --content 'Exercise the tracker'
+
+Flags:
+      --assignee NAME       Optional. Assignee NAME; list accepts none for unassigned
+      --content TEXT        Optional. UTF-8 content TEXT; conflicts with --content-file
+      --content-file PATH   Optional. Read UTF-8 content from PATH; - reads stdin once
+      --file PATH           Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+      --force               Optional. Explicitly override competing claim ownership where supported
+  -h, --help                help for create
+      --issue REF           Conditional (see valid forms). Issue REF (create: new title); repeat to begin another atomic item
+      --label LABEL         Optional. Initial issue LABEL (repeatable)
+      --parent REF          Optional. Parent issue REF; list accepts none for no parent
+      --project REF         Optional. Project REF: title or UUID; otherwise session selection
+      --state STATE         Optional. Issue STATE: open or closed
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit issues get --help
+Read issues and current properties.
+With --format markdown, one complete returned record becomes YAML frontmatter
+plus the exact original Markdown body. Duplicate selectors may return one record;
+multiple returned records use a structured report. Export each separately for documents.
+This is a read snapshot, not an import format: --content-file reads the entire file as body.
+
+Requirements:
+  Required: one or more REF operands.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit issues get REF...
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit issues get REF... [flags]
+
+Examples:
+  lit issues get --session my-session --project test/poc 'Verify the PoC'
+
+Flags:
+  -h, --help          help for get
+      --project REF   Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit issues list --help
+List and filter issues.
+Filters combine with AND; set filters may repeat. --all conflicts with --limit/--cursor.
+Reuse the same filters with a returned cursor. --all does not widen project scope.
+
+Requirements:
+  Required: project selection (--project or saved session), or --all-projects.
+  --all-projects conflicts with explicit --project; query files may supply project_id or all_projects.
+  --milestone REF is project-scoped and cannot be combined with --all-projects.
+  Choose flag filters or a typed JSON query object: cannot combine --file with query/filter flags.
+  --all conflicts with --limit/--cursor; --all does not widen project scope.
+  Reuse the same filters with --cursor. Filters combine with AND.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit issues list [--project REF | --all-projects] [FILTERS] [--limit N] [--cursor TOKEN]
+  lit issues list [--project REF | --all-projects] [FILTERS] --all
+  lit issues list --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit issues list [flags]
+
+Examples:
+  lit issues list --session my-session --project test/poc --limit 20
+
+Flags:
+      --all                      Optional. Return all results as one bounded snapshot; conflicts with --limit/--cursor
+      --all-projects             Optional. Search or list across projects instead of the selected project
+      --assignee NAME            Optional. Assignee NAME; list accepts none for unassigned
+      --blocked BOOL             Optional. Filter blocked issues: BOOL true or false
+      --claimed BOOL             Optional. Filter active work claims: BOOL true or false
+      --created-after RFC3339    Optional. Inclusive creation boundary RFC3339
+      --created-before RFC3339   Optional. Exclusive creation boundary RFC3339
+      --cursor TOKEN             Optional. Continue the same query with opaque TOKEN
+      --direction DIRECTION      Optional. Sort DIRECTION: asc or desc
+      --file PATH                Optional. Input PATH: mutation JSON array or typed query object; - reads stdin once
+  -h, --help                     help for list
+      --id UUID                  Optional. Match object UUID (repeatable)
+      --labels-all LABEL         Optional. Require every specified LABEL (repeatable)
+      --labels-any LABEL         Optional. Require any specified LABEL (repeatable)
+      --labels-none LABEL        Optional. Exclude every specified LABEL (repeatable)
+      --limit N                  Optional. Page size N (default 100, maximum 1000 unless configured)
+      --milestone REF            Optional. Milestone REF whose members to include; requires project scope
+      --owner-client-id UUID     Optional. Filter claim owner by client UUID
+      --parent REF               Optional. Parent issue REF; list accepts none for no parent
+      --project REF              Optional. Project REF: title or UUID; otherwise session selection
+  -q, --query TEXT               Optional. Case-insensitive content substring TEXT
+      --sort FIELD               Optional. Sort FIELD: created-at, updated-at, title
+      --state STATE              Optional. Issue STATE: open or closed
+      --title TITLE              Optional. Object TITLE (exact title filter on list)
+      --updated-after RFC3339    Optional. Inclusive update boundary RFC3339
+      --updated-before RFC3339   Optional. Exclusive update boundary RFC3339
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit issues update --help
+Update issues atomically.
+Repeat the item boundary flag to submit an atomic batch, or use --file with a JSON array.
+Scalar fields may occur once per item; repeated set fields preserve input order.
+
+Requirements:
+  Required: target(s) using one of the forms below.
+  Choose one input mode: positional targets, boundary-flag groups, or --file PATH (JSON array).
+  Do not mix --file with item flags or positional targets; grouped and positional targets cannot mix.
+  Use change flags to set, add, remove or clear fields; unchanged values are safe no-ops. --content and --content-file are mutually exclusive per item; stdin (-) may be read only once.
+  CHANGE_FLAGS are the set/add/remove/clear flags listed below (for example --content TEXT).
+  Repeat the boundary flag before each item's fields; positional targets share one set of fields.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit issues update REF... [CHANGE_FLAGS] [--revision N]
+  lit issues update --issue REF [CHANGE_FLAGS] [--revision N] [--issue REF [CHANGE_FLAGS] [--revision N]]
+  lit issues update --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit issues update [REF...] [flags]
+
+Examples:
+  lit issues update --session my-session --project test/poc 'Verify the PoC' --content 'Updated details'
+
+Flags:
+      --add-label LABEL      Optional. Add issue LABEL (repeatable)
+      --assignee NAME        Optional. Assignee NAME; list accepts none for unassigned
+      --clear FIELD          Optional. Clear FIELD (repeatable): content, labels, assignee, parent
+      --content TEXT         Optional. UTF-8 content TEXT; conflicts with --content-file
+      --content-file PATH    Optional. Read UTF-8 content from PATH; - reads stdin once
+      --file PATH            Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+      --force                Optional. Explicitly override competing claim ownership where supported
+  -h, --help                 help for update
+      --issue REF            Conditional (see valid forms). Issue REF (create: new title); repeat to begin another atomic item
+      --parent REF           Optional. Parent issue REF; list accepts none for no parent
+      --project REF          Optional. Project REF: title or UUID; otherwise session selection
+      --remove-label LABEL   Optional. Remove issue LABEL (repeatable)
+      --revision N           Optional. Expected object revision N; reject stale mutations
+      --state STATE          Optional. Issue STATE: open or closed
+      --title TITLE          Optional. Object TITLE (exact title filter on list)
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit issues close --help
+Mark issues closed.
+
+Requirements:
+  Required: target(s) using one of the forms below.
+  Choose one input mode: positional targets, boundary-flag groups, or --file PATH (JSON array).
+  Do not mix --file with item flags or positional targets; grouped and positional targets cannot mix.
+  Repeat the boundary flag before each item's fields; positional targets share one set of fields.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit issues close REF... [--revision N]
+  lit issues close --issue REF [--revision N] [--issue REF [--revision N]]
+  lit issues close --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit issues close [REF...] [flags]
+
+Examples:
+  lit issues close --session my-session --project test/poc 'Verify the PoC'
+
+Flags:
+      --file PATH     Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+      --force         Optional. Explicitly override competing claim ownership where supported
+  -h, --help          help for close
+      --issue REF     Conditional (see valid forms). Issue REF (create: new title); repeat to begin another atomic item
+      --project REF   Optional. Project REF: title or UUID; otherwise session selection
+      --revision N    Optional. Expected object revision N; reject stale mutations
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit issues reopen --help
+Mark issues open.
+
+Requirements:
+  Required: target(s) using one of the forms below.
+  Choose one input mode: positional targets, boundary-flag groups, or --file PATH (JSON array).
+  Do not mix --file with item flags or positional targets; grouped and positional targets cannot mix.
+  Repeat the boundary flag before each item's fields; positional targets share one set of fields.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit issues reopen REF... [--revision N]
+  lit issues reopen --issue REF [--revision N] [--issue REF [--revision N]]
+  lit issues reopen --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit issues reopen [REF...] [flags]
+
+Examples:
+  lit issues reopen --session my-session --project test/poc 'Verify the PoC'
+
+Flags:
+      --file PATH     Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+      --force         Optional. Explicitly override competing claim ownership where supported
+  -h, --help          help for reopen
+      --issue REF     Conditional (see valid forms). Issue REF (create: new title); repeat to begin another atomic item
+      --project REF   Optional. Project REF: title or UUID; otherwise session selection
+      --revision N    Optional. Expected object revision N; reject stale mutations
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit issues link --help
+Add issue relationships atomically.
+Repeat --from followed by --to targets and --relation for another atomic group.
+blocks points from source to target; blocked-by reverses it; related is symmetric.
+
+Requirements:
+  Required: --from, at least one --to, and --relation per group; or --file PATH.
+  Do not mix --file with group flags; positional targets are not accepted.
+  Repeat --from to start another atomic group; --to may repeat within a group.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit issues link --from REF --to REF --relation KIND [--to REF]
+  lit issues link --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit issues link [flags]
+
+Examples:
+  lit issues link --session my-session --project test/poc --from 'Implement API' --to 'Test API' --relation blocks
+
+Flags:
+      --file PATH       Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+      --force           Optional. Explicitly override competing claim ownership where supported
+      --from REF        Conditional (see valid forms). Source issue REF; repeat to begin another atomic relation group
+  -h, --help            help for link
+      --project REF     Optional. Project REF: title or UUID; otherwise session selection
+      --relation KIND   Conditional (see valid forms). Relation KIND: blocks, blocked-by or related
+      --to REF          Conditional (see valid forms). Target issue REF in this relation group (repeatable)
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit issues unlink --help
+Remove issue relationships atomically.
+Repeat --from followed by --to targets and --relation for another atomic group.
+blocks points from source to target; blocked-by reverses it; related is symmetric.
+
+Requirements:
+  Required: --from, at least one --to, and --relation per group; or --file PATH.
+  Do not mix --file with group flags; positional targets are not accepted.
+  Repeat --from to start another atomic group; --to may repeat within a group.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit issues unlink --from REF --to REF --relation KIND [--to REF]
+  lit issues unlink --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit issues unlink [flags]
+
+Examples:
+  lit issues unlink --session my-session --project test/poc --from 'Implement API' --to 'Test API' --relation blocks
+
+Flags:
+      --file PATH       Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+      --force           Optional. Explicitly override competing claim ownership where supported
+      --from REF        Conditional (see valid forms). Source issue REF; repeat to begin another atomic relation group
+  -h, --help            help for unlink
+      --project REF     Optional. Project REF: title or UUID; otherwise session selection
+      --relation KIND   Conditional (see valid forms). Relation KIND: blocks, blocked-by or related
+      --to REF          Conditional (see valid forms). Target issue REF in this relation group (repeatable)
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit issues history --help
+Read immutable mutation history.
+Use a reference (title or UUID) and pagination, or select one --request-hash.
+
+Requirements:
+  Required: one REF operand.
+  --request-hash conflicts with --limit, --cursor and --all.
+  --all conflicts with --limit/--cursor.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit issues history REF [--limit N] [--cursor TOKEN]
+  lit issues history REF --all
+  lit issues history REF --request-hash HASH
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit issues history REF [flags]
+
+Examples:
+  lit issues history --session my-session --project test/poc 'Verify the PoC'
+
+Flags:
+      --all                 Optional. Return all results as one bounded snapshot; conflicts with --limit/--cursor
+      --cursor TOKEN        Optional. Continue the same query with opaque TOKEN
+  -h, --help                help for history
+      --limit N             Optional. Page size N (default 100, maximum 1000 unless configured)
+      --project REF         Optional. Project REF: title or UUID; otherwise session selection
+      --request-hash HASH   Optional. Find history for transaction HASH
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit milestones --help
+Group project issues into named worksets
+
+Usage:
+  lit milestones [flags]
+  lit milestones [command]
+
+Available Commands:
+  create      Create milestones atomically
+  get         Read milestones and current properties
+  history     Read immutable mutation history
+  list        List and filter milestones
+  update      Update milestones atomically
+
+Flags:
+  -h, --help   help for milestones
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+
+Use "lit milestones [command] --help" for more information about a command.
+== lit milestones create --help
+Create milestones atomically.
+Repeat the item boundary flag to submit an atomic batch, or use --file with a JSON array.
+Scalar fields may occur once per item; repeated set fields preserve input order.
+
+Requirements:
+  Required: project selection via --project REF or the session, and --milestone TITLE per flag-defined item; or --file PATH (nonempty JSON array with project per item or selected project).
+  Repeat --milestone to begin another atomic item; repeat --issue REF for members in that item. --issue references resolve within the milestone project.
+  Content is optional. --content and --content-file are mutually exclusive per item; stdin (-) may be read only once.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Milestone REF: exact title in the selected project, UUID, unique UUID prefix, title:TITLE, or id:UUID_PREFIX.
+  Issue membership references resolve inside the selected milestone project.
+
+Valid forms:
+  lit milestones create [--project REF] --milestone TITLE [--content TEXT | --content-file PATH] [--issue REF...]
+  lit milestones create [--project REF] --milestone TITLE [ITEM_FLAGS] --milestone TITLE [ITEM_FLAGS]
+  lit milestones create --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit milestones create [flags]
+
+Examples:
+  lit milestones create --session my-session --project test/poc --milestone M1 --content 'Verify the PoC'
+
+Flags:
+      --content TEXT        Optional. UTF-8 content TEXT; conflicts with --content-file
+      --content-file PATH   Optional. Read UTF-8 content from PATH; - reads stdin once
+      --file PATH           Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+  -h, --help                help for create
+      --issue REF           Conditional (see valid forms). Existing issue REF to include in this milestone (repeatable within each item)
+      --milestone TITLE     Conditional (see valid forms). Milestone TITLE (create: new title); repeat to begin another atomic item
+      --project REF         Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit milestones get --help
+Read milestones and current properties.
+With --format markdown, one complete returned record becomes YAML frontmatter
+plus the exact original Markdown body. Duplicate selectors may return one record;
+multiple returned records use a structured report. Export each separately for documents.
+This is a read snapshot, not an import format: --content-file reads the entire file as body.
+
+Requirements:
+  Required: one or more milestone REF operands. Resolve the reference in the selected project.
+  Milestone titles are resolved inside the selected project. A project-scoped UUID or ID prefix is valid; use the full UUID to avoid ambiguity.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Milestone REF: exact title in the selected project, UUID, unique UUID prefix, title:TITLE, or id:UUID_PREFIX.
+  Issue membership references resolve inside the selected milestone project.
+
+Valid forms:
+  lit milestones get REF...
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit milestones get REF... [flags]
+
+Examples:
+  lit milestones get --session my-session --project test/poc M1
+
+Flags:
+  -h, --help          help for get
+      --project REF   Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit milestones list --help
+List and filter milestones.
+Filters combine with AND; set filters may repeat. --all conflicts with --limit/--cursor.
+Reuse the same filters with a returned cursor. --all does not widen project scope.
+
+Requirements:
+  Required: project scope via --project REF, saved session selection, or project_id in the query file. Milestone queries cannot span projects.
+  Choose flag filters or a typed JSON query object: cannot combine --file with query/filter flags.
+  --all conflicts with --limit/--cursor; --all does not widen project scope.
+  Reuse the same filters with --cursor. Filters combine with AND.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Milestone REF: exact title in the selected project, UUID, unique UUID prefix, title:TITLE, or id:UUID_PREFIX.
+  Issue membership references resolve inside the selected milestone project.
+
+Valid forms:
+  lit milestones list [--project REF] [FILTERS] [--limit N] [--cursor TOKEN]
+  lit milestones list [--project REF] [FILTERS] --all
+  lit milestones list --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit milestones list [flags]
+
+Examples:
+  lit milestones list --session my-session --project test/poc --limit 20
+
+Flags:
+      --all                      Optional. Return all results as one bounded snapshot; conflicts with --limit/--cursor
+      --created-after RFC3339    Optional. Inclusive creation boundary RFC3339
+      --created-before RFC3339   Optional. Exclusive creation boundary RFC3339
+      --cursor TOKEN             Optional. Continue the same query with opaque TOKEN
+      --direction DIRECTION      Optional. Sort DIRECTION: asc or desc
+      --file PATH                Optional. Input PATH: mutation JSON array or typed query object; - reads stdin once
+  -h, --help                     help for list
+      --id UUID                  Optional. Match object UUID (repeatable)
+      --limit N                  Optional. Page size N (default 100, maximum 1000 unless configured)
+      --project REF              Optional. Project REF: title or UUID; otherwise session selection
+  -q, --query TEXT               Optional. Case-insensitive content substring TEXT
+      --sort FIELD               Optional. Sort FIELD: created-at, updated-at, title
+      --title TITLE              Optional. Object TITLE (exact title filter on list)
+      --updated-after RFC3339    Optional. Inclusive update boundary RFC3339
+      --updated-before RFC3339   Optional. Exclusive update boundary RFC3339
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit milestones update --help
+Update milestones atomically.
+Repeat the item boundary flag to submit an atomic batch, or use --file with a JSON array.
+Scalar fields may occur once per item; repeated set fields preserve input order.
+
+Requirements:
+  Required: one or more milestone REF operands, or --file PATH (nonempty JSON array).
+  Use --title, --content/--content-file, --add-issue, --remove-issue, --clear content|issues and --revision as needed. Member references resolve within each target milestone's project. --file cannot combine with flag or positional inputs. --content and --content-file are mutually exclusive per item; stdin (-) may be read only once.
+  Milestone titles are resolved inside the selected project. A project-scoped UUID or ID prefix is valid; use the full UUID to avoid ambiguity.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Milestone REF: exact title in the selected project, UUID, unique UUID prefix, title:TITLE, or id:UUID_PREFIX.
+  Issue membership references resolve inside the selected milestone project.
+
+Valid forms:
+  lit milestones update REF... [CHANGE_FLAGS] [--revision N]
+  lit milestones update --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit milestones update [REF...] [flags]
+
+Examples:
+  lit milestones update --session my-session --project test/poc M1 --content 'Updated details'
+
+Flags:
+      --add-issue REF       Optional. Add issue REF to milestone membership (repeatable)
+      --clear FIELD         Optional. Clear FIELD (repeatable): content, issues
+      --content TEXT        Optional. UTF-8 content TEXT; conflicts with --content-file
+      --content-file PATH   Optional. Read UTF-8 content from PATH; - reads stdin once
+      --file PATH           Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+  -h, --help                help for update
+      --project REF         Optional. Project REF: title or UUID; otherwise session selection
+      --remove-issue REF    Optional. Remove issue REF from milestone membership (repeatable)
+      --revision N          Optional. Expected object revision N; reject stale mutations
+      --title TITLE         Optional. Object TITLE (exact title filter on list)
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit milestones history --help
+Read immutable mutation history.
+Use a reference (title or UUID) and pagination, or select one --request-hash.
+
+Requirements:
+  Required: one milestone REF operand. Resolve the reference in the selected project.
+  Milestone titles are resolved inside the selected project. A project-scoped UUID or ID prefix is valid; use the full UUID to avoid ambiguity.
+  --request-hash conflicts with --limit, --cursor and --all.
+  --all conflicts with --limit/--cursor.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Milestone REF: exact title in the selected project, UUID, unique UUID prefix, title:TITLE, or id:UUID_PREFIX.
+  Issue membership references resolve inside the selected milestone project.
+
+Valid forms:
+  lit milestones history REF [--limit N] [--cursor TOKEN]
+  lit milestones history REF --all
+  lit milestones history REF --request-hash HASH
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit milestones history REF [flags]
+
+Examples:
+  lit milestones history --session my-session --project test/poc M1
+
+Flags:
+      --all                 Optional. Return all results as one bounded snapshot; conflicts with --limit/--cursor
+      --cursor TOKEN        Optional. Continue the same query with opaque TOKEN
+  -h, --help                help for history
+      --limit N             Optional. Page size N (default 100, maximum 1000 unless configured)
+      --project REF         Optional. Project REF: title or UUID; otherwise session selection
+      --request-hash HASH   Optional. Find history for transaction HASH
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit comments --help
+Discuss issues with durable comments
+
+Usage:
+  lit comments [flags]
+  lit comments [command]
+
+Available Commands:
+  create      Create comments atomically
+  get         Read comments and current properties
+  history     Read immutable mutation history
+  list        List and filter comments
+  update      Update comments atomically
+
+Flags:
+  -h, --help   help for comments
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+
+Use "lit comments [command] --help" for more information about a command.
+== lit comments create --help
+Create comments atomically.
+Repeat the item boundary flag to submit an atomic batch, or use --file with a JSON array.
+Scalar fields may occur once per item; repeated set fields preserve input order.
+
+Requirements:
+  Required: --issue ISSUE_REF for each flag-defined item, or --file PATH (nonempty JSON array).
+  Do not mix --file with item flags. Repeat the boundary flag before each item's fields.
+  Content is optional. --content and --content-file are mutually exclusive per item; stdin (-) may be read only once.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  The comment owner selector identifies the owning issue.
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit comments create --issue ISSUE_REF [--content TEXT | --content-file PATH]
+  lit comments create --issue ISSUE_REF [ITEM_FLAGS] --issue ISSUE_REF [ITEM_FLAGS]
+  lit comments create --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit comments create [flags]
+
+Examples:
+  lit comments create --session my-session --project test/poc --issue 'Verify the PoC' --content 'Verified'
+
+Flags:
+      --author NAME         Optional. Comment author NAME
+      --content TEXT        Optional. UTF-8 content TEXT; conflicts with --content-file
+      --content-file PATH   Optional. Read UTF-8 content from PATH; - reads stdin once
+      --file PATH           Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+      --force               Optional. Explicitly override competing claim ownership where supported
+  -h, --help                help for create
+      --issue ISSUE_REF     Conditional (see valid forms). Owning issue ISSUE_REF; repeat to begin another atomic comment item
+      --project REF         Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit comments get --help
+Read comments and current properties.
+With --format markdown, one complete returned record becomes YAML frontmatter
+plus the exact original Markdown body. Duplicate selectors may return one record;
+multiple returned records use a structured report. Export each separately for documents.
+This is a read snapshot, not an import format: --content-file reads the entire file as body.
+
+Requirements:
+  Required: one or more REF operands. Comment references are UUIDs.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Comment REF: UUID, unique UUID prefix, or id:UUID_PREFIX.
+  Comments have no title selector or project-qualified selector.
+
+Valid forms:
+  lit comments get REF...
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit comments get REF... [flags]
+
+Examples:
+  lit comments get --session my-session 01234567-89ab-4cde-8fab-0123456789ab
+
+Flags:
+  -h, --help          help for get
+      --project REF   Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit comments list --help
+List and filter comments.
+Filters combine with AND; set filters may repeat. --all conflicts with --limit/--cursor.
+Reuse the same filters with a returned cursor. --all does not widen project scope.
+
+Requirements:
+  Required: an owning issue via --issue REF, or issue_id in the query file.
+  Choose flag filters or a typed JSON query object: cannot combine --file with query/filter flags.
+  --all conflicts with --limit/--cursor; --all does not widen project scope.
+  Reuse the same filters with --cursor. Filters combine with AND.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+
+References:
+  The comment owner selector identifies the owning issue.
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit comments list --issue REF [FILTERS] [--limit N] [--cursor TOKEN]
+  lit comments list --issue REF [FILTERS] --all
+  lit comments list --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit comments list [flags]
+
+Examples:
+  lit comments list --session my-session --project test/poc --issue 'Verify the PoC' --limit 20
+
+Flags:
+      --all                      Optional. Return all results as one bounded snapshot; conflicts with --limit/--cursor
+      --author NAME              Optional. Comment author NAME
+      --created-after RFC3339    Optional. Inclusive creation boundary RFC3339
+      --created-before RFC3339   Optional. Exclusive creation boundary RFC3339
+      --cursor TOKEN             Optional. Continue the same query with opaque TOKEN
+      --direction DIRECTION      Optional. Sort DIRECTION: asc or desc
+      --file PATH                Optional. Input PATH: mutation JSON array or typed query object; - reads stdin once
+  -h, --help                     help for list
+      --id UUID                  Optional. Match object UUID (repeatable)
+      --issue ISSUE_REF          Optional. Owning issue ISSUE_REF
+      --limit N                  Optional. Page size N (default 100, maximum 1000 unless configured)
+      --project REF              Optional. Project REF: title or UUID; otherwise session selection
+  -q, --query TEXT               Optional. Case-insensitive content substring TEXT
+      --sort FIELD               Optional. Sort FIELD: created-at, updated-at
+      --updated-after RFC3339    Optional. Inclusive update boundary RFC3339
+      --updated-before RFC3339   Optional. Exclusive update boundary RFC3339
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit comments update --help
+Update comments atomically.
+Repeat the item boundary flag to submit an atomic batch, or use --file with a JSON array.
+Scalar fields may occur once per item; repeated set fields preserve input order.
+
+Requirements:
+  Required: target(s) using one of the forms below.
+  Choose one input mode: positional targets, boundary-flag groups, or --file PATH (JSON array).
+  Do not mix --file with item flags or positional targets; grouped and positional targets cannot mix.
+  Use change flags to set, add, remove or clear fields; unchanged values are safe no-ops. --content and --content-file are mutually exclusive per item; stdin (-) may be read only once.
+  CHANGE_FLAGS are the set/add/remove/clear flags listed below (for example --content TEXT).
+  Comment references are UUIDs.
+  Repeat the boundary flag before each item's fields; positional targets share one set of fields.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Comment REF: UUID, unique UUID prefix, or id:UUID_PREFIX.
+  Comments have no title selector or project-qualified selector.
+
+Valid forms:
+  lit comments update REF... [CHANGE_FLAGS] [--revision N]
+  lit comments update --comment REF [CHANGE_FLAGS] [--revision N] [--comment REF [CHANGE_FLAGS] [--revision N]]
+  lit comments update --file PATH
+  [] means optional; | separates alternatives; ... means repeatable.
+  FILTERS / ITEM_FLAGS / CHANGE_FLAGS refer to applicable flags below.
+
+Usage:
+  lit comments update [REF...] [flags]
+
+Examples:
+  lit comments update --session my-session 01234567-89ab-4cde-8fab-0123456789ab --content 'Updated details'
+
+Flags:
+      --author NAME         Optional. Comment author NAME
+      --clear FIELD         Optional. Clear FIELD (repeatable): content
+      --comment REF         Conditional (see valid forms). Comment REF to update; repeat to begin another atomic item
+      --content TEXT        Optional. UTF-8 content TEXT; conflicts with --content-file
+      --content-file PATH   Optional. Read UTF-8 content from PATH; - reads stdin once
+      --file PATH           Conditional (see valid forms). Input PATH: mutation JSON array or typed query object; - reads stdin once
+      --force               Optional. Explicitly override competing claim ownership where supported
+  -h, --help                help for update
+      --project REF         Optional. Project REF: title or UUID; otherwise session selection
+      --revision N          Optional. Expected object revision N; reject stale mutations
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit comments history --help
+Read immutable mutation history.
+Use a reference (title or UUID) and pagination, or select one --request-hash.
+
+Requirements:
+  Required: one REF operand. Comment references are UUIDs.
+  --request-hash conflicts with --limit, --cursor and --all.
+  --all conflicts with --limit/--cursor.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Comment REF: UUID, unique UUID prefix, or id:UUID_PREFIX.
+  Comments have no title selector or project-qualified selector.
+
+Valid forms:
+  lit comments history REF [--limit N] [--cursor TOKEN]
+  lit comments history REF --all
+  lit comments history REF --request-hash HASH
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit comments history REF [flags]
+
+Examples:
+  lit comments history --session my-session 01234567-89ab-4cde-8fab-0123456789ab
+
+Flags:
+      --all                 Optional. Return all results as one bounded snapshot; conflicts with --limit/--cursor
+      --cursor TOKEN        Optional. Continue the same query with opaque TOKEN
+  -h, --help                help for history
+      --limit N             Optional. Page size N (default 100, maximum 1000 unless configured)
+      --project REF         Optional. Project REF: title or UUID; otherwise session selection
+      --request-hash HASH   Optional. Find history for transaction HASH
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit claims --help
+Reserve issues with expiring work claims
+
+Usage:
+  lit claims [flags]
+  lit claims [command]
+
+Available Commands:
+  acquire     Reserve issues with expiring exclusive claims
+  get         Read claims and current properties
+  list        List and filter claims
+  release     Release claims owned by this session
+  renew       Extend claims owned by this session
+
+Flags:
+  -h, --help   help for claims
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+
+Use "lit claims [command] --help" for more information about a command.
+== lit claims acquire --help
+Reserve issues with expiring exclusive claims.
+
+Requirements:
+  Required: one or more issue REF operands.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Lease: choose --for or --until, never both; default 30m, maximum 1h from service time.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit claims acquire REF... [--project REF] [--for DURATION | --until RFC3339] [--force]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit claims acquire REF... [flags]
+
+Examples:
+  lit claims acquire --session my-session --project test/poc 'Verify the PoC'
+
+Flags:
+      --for DURATION    Optional. Lease DURATION, positive and at most 1h
+      --force           Optional. Explicitly override competing claim ownership where supported
+  -h, --help            help for acquire
+      --project REF     Optional. Project REF: title or UUID; otherwise session selection
+      --until RFC3339   Optional. Absolute lease expiry RFC3339, at most one hour from service time
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit claims get --help
+Read claims and current properties.
+
+Requirements:
+  Required: one or more issue REF operands.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit claims get REF... [--project REF]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit claims get REF... [flags]
+
+Examples:
+  lit claims get --session my-session --project test/poc 'Verify the PoC'
+
+Flags:
+  -h, --help          help for get
+      --project REF   Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit claims list --help
+List and filter claims.
+Filters combine with AND; set filters may repeat. --all conflicts with --limit/--cursor.
+Reuse the same filters with a returned cursor. --all does not widen project scope.
+
+Requirements:
+  No required query flags. Defaults to claims owned by this session.
+  Optional --file supplies a query object; explicit flags override its corresponding fields.
+  --all conflicts with --limit/--cursor; --all does not widen project scope.
+  Reuse the same filters with --cursor. Filters combine with AND.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+Valid forms:
+  lit claims list [--owner-client-id UUID] [--issue-id UUID] [--limit N] [--cursor TOKEN]
+  lit claims list --all
+  lit claims list --file PATH [--owner-client-id UUID]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit claims list [flags]
+
+Examples:
+  lit claims list --session my-session --limit 20
+
+Flags:
+      --all                    Optional. Return all results as one bounded snapshot; conflicts with --limit/--cursor
+      --cursor TOKEN           Optional. Continue the same query with opaque TOKEN
+      --direction DIRECTION    Optional. Sort DIRECTION: asc or desc
+      --file PATH              Optional. Input PATH: mutation JSON array or typed query object; - reads stdin once
+  -h, --help                   help for list
+      --issue-id UUID          Optional. Filter claim by issue UUID
+      --limit N                Optional. Page size N (default 100, maximum 1000 unless configured)
+      --owner-client-id UUID   Optional. Filter claim owner by client UUID
+      --sort FIELD             Optional. Sort FIELD: created-at
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit claims renew --help
+Extend claims owned by this session.
+
+Requirements:
+  Required: one or more issue REF operands, or --all for this session's owned claims.
+  --all cannot be combined with targets or --project.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+  Lease: choose --for or --until, never both; default 30m, maximum 1h from service time.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit claims renew REF... [--project REF] [--for DURATION | --until RFC3339]
+  lit claims renew --all [--for DURATION | --until RFC3339]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit claims renew [REF...] [flags]
+
+Examples:
+  lit claims renew --session my-session --project test/poc 'Verify the PoC'
+
+Flags:
+      --all             Optional. Renew all claims owned by this session; conflicts with explicit targets and --project
+      --for DURATION    Optional. Lease DURATION, positive and at most 1h
+  -h, --help            help for renew
+      --project REF     Optional. Project REF: title or UUID; otherwise session selection
+      --until RFC3339   Optional. Absolute lease expiry RFC3339, at most one hour from service time
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit claims release --help
+Release claims owned by this session.
+
+Requirements:
+  Required: one or more issue REF operands, or --all for this session's owned claims.
+  --all cannot be combined with targets or --project.
+  Issue titles need project selection: --project REF or the session's selected project.
+  Issue UUIDs and project-qualified issue references can identify existing issues without that selection.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+  Issue REF: title in the selected project, UUID or unique UUID prefix.
+  Use title:TITLE for a literal title, or id:UUID_PREFIX for ID-only matching.
+  PROJECT_TITLE:ISSUE_REF selects an issue in another project, for example
+  feat/api:title:Review API. A qualified prefix is scoped to that project;
+  an unqualified UUID or ID prefix is global even when a project is selected.
+  For titles containing slashes and colons, quote the argument and force title matching:
+  --project test/poc 'title:Refactor a/b: cleanup'.
+
+Valid forms:
+  lit claims release REF... [--project REF]
+  lit claims release --all
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit claims release [REF...] [flags]
+
+Examples:
+  lit claims release --session my-session --project test/poc 'Verify the PoC'
+
+Flags:
+      --all           Optional. Release all claims owned by this session; conflicts with explicit targets and --project
+  -h, --help          help for release
+      --project REF   Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit transactions --help
+Reconcile uncertain mutation outcomes
+
+Usage:
+  lit transactions [flags]
+  lit transactions [command]
+
+Available Commands:
+  status      Inspect retained requests without replaying them
+
+Flags:
+  -h, --help   help for transactions
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+
+Use "lit transactions [command] --help" for more information about a command.
+== lit transactions status --help
+Inspect retained requests without replaying them.
+Without flags, inspect all retained requests. --session filters by service/client binding.
+Outcomes: committed, already_satisfied, uncommitted, or uncertain (exit 4). Never replays requests.
+
+Requirements:
+  Required flags: none. Without --file, inspect all retained request files.
+  --file selects one retained request envelope (not a mutation array or stdin).
+  Only explicit --session filters by service/client binding; LIT_SESSION does not filter.
+  Each retained request supplies its own endpoint; this command never replays mutations.
+
+Valid forms:
+  lit transactions status [--session NAME]
+  lit transactions status --file PATH [--session NAME]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit transactions status [flags]
+
+Examples:
+  lit transactions status --session my-session
+
+Flags:
+      --file PATH   Optional retained request envelope PATH (not stdin or a mutation array)
+  -h, --help        help for status
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit grep --help
+Search the selected project, or explicitly use --all-projects. Matching is case-insensitive by default.
+Use -- before patterns beginning with a dash; grep -- --help searches for literal --help.
+
+Requirements:
+  Required: one nonempty PATTERN and project selection, or --all-projects.
+  --project and --all-projects are mutually exclusive. Omitted --project uses session selection.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+
+Valid forms:
+  lit grep [--project REF | --all-projects] [--limit N] [--cursor TOKEN] PATTERN
+  lit grep [--project REF | --all-projects] -- --help
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit grep PATTERN [flags]
+
+Examples:
+  lit grep --session my-session 'renewal'
+  lit grep --session my-session -- --help
+
+Flags:
+      --all-projects     Optional. Search or list across projects instead of the selected project
+      --case-sensitive   Optional. Use case-sensitive literal matching
+  -C, --context N        Optional. Include N surrounding lines in search excerpts
+      --cursor TOKEN     Optional. Continue the same query with opaque TOKEN
+  -h, --help             help for grep
+      --limit N          Optional. Page size N (default 100, maximum 1000 unless configured)
+  -n, --n                Optional. Show line numbers in search excerpts
+      --project REF      Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+== lit setup-skills --help
+setup-skills --scope local|user|custom --agent codex|claude|both [--path PARENT]
+Installs all embedded skills offline; never starts lit-server.
+Output is a JSON installation receipt; --format does not apply.
+local: current directory. user: home directory. custom: --path is the parent of .codex/.claude.
+--path is required only for custom scope. Existing owned files upgrade; local edits and collisions fail.
+Both agents are preflighted before writes; unexpected errors can leave one host completed. Rerun safely.
+
+Requirements:
+  Required flags: --scope and --agent.
+  --path is required with custom scope and forbidden with local or user scope.
+  No tracker session or service is needed.
+
+Valid forms:
+  lit setup-skills --scope local|user --agent codex|claude|both
+  lit setup-skills --scope custom --path DIRECTORY --agent codex|claude|both
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit setup-skills [flags]
+
+Examples:
+  lit setup-skills --scope local --agent both
+  lit setup-skills --scope custom --path /work/project --agent codex
+
+Flags:
+      --agent AGENT      Required Target AGENT: codex, claude or both
+  -h, --help             help for setup-skills
+      --path DIRECTORY   Required with --scope custom; forbidden otherwise. Parent DIRECTORY of .codex/.claude for custom scope
+      --scope SCOPE      Required Install SCOPE: local, user or custom
+== lit workflow-session --help
+Bind explicit runtime identity to durable workflow state. Never starts a service.
+Fresh sessions and subagents get isolated clients; resume reuses the recorded client.
+Lifecycle commands output a JSON association record. run forwards tracker output with --format json;
+--format does not apply to this adapter.
+
+Usage:
+  lit workflow-session [flags]
+  lit workflow-session [command]
+
+Available Commands:
+  checkout    Record a repository checkout path
+  fresh       Create an isolated logical client
+  reconcile   Inspect a pending session binding
+  resume      Resume the recorded client
+  run         Run a tracker command with the bound client
+  subagent    Create an isolated child client
+
+Flags:
+      --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
+  -h, --help             help for workflow-session
+      --host HOST        Required agent HOST: codex or claude
+      --runtime-id ID    Required explicit vendor runtime session ID
+
+Global Flags:
+      --endpoint URL   Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+
+Use "lit workflow-session [command] --help" for more information about a command.
+== lit workflow-session fresh --help
+Create an isolated logical client.
+Output is a JSON association record; --format does not apply.
+
+Requirements:
+  Required flags: --host and --runtime-id.
+  Endpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+
+Valid forms:
+  lit workflow-session --host codex|claude --runtime-id ID fresh [--endpoint URL] [--project REF] [--discussion-id ID]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit workflow-session fresh [flags]
+
+Examples:
+  lit workflow-session --host codex --runtime-id SESSION fresh
+
+Flags:
+      --discussion-id ID   Optional. Optional discussion ID for workflow metadata
+  -h, --help               help for fresh
+      --project REF        Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
+      --endpoint URL     Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --host HOST        Required agent HOST: codex or claude
+      --runtime-id ID    Required explicit vendor runtime session ID
+== lit workflow-session subagent --help
+Create an isolated child client.
+Output is a JSON association record; --format does not apply.
+
+Requirements:
+  Required flags: --host, --runtime-id and --parent-runtime-id.
+  The child runtime ID must be distinct from the parent runtime ID.
+  Endpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+
+Valid forms:
+  lit workflow-session --host codex|claude --runtime-id ID subagent --parent-runtime-id PARENT [--endpoint URL] [--project REF] [--discussion-id ID]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit workflow-session subagent [flags]
+
+Examples:
+  lit workflow-session --host codex --runtime-id SESSION subagent --parent-runtime-id PARENT
+
+Flags:
+      --discussion-id ID       Optional. Optional discussion ID for workflow metadata
+  -h, --help                   help for subagent
+      --parent-runtime-id ID   Required parent runtime session ID
+      --project REF            Optional. Project REF: title or UUID; otherwise session selection
+
+Global Flags:
+      --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
+      --endpoint URL     Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --host HOST        Required agent HOST: codex or claude
+      --runtime-id ID    Required explicit vendor runtime session ID
+== lit workflow-session resume --help
+Resume the recorded client.
+Output is a JSON association record; --format does not apply.
+
+Requirements:
+  Required flags: --host and --runtime-id.
+  Uses the saved runtime binding and endpoint; --endpoint and --project do not apply.
+
+Valid forms:
+  lit workflow-session --host codex|claude --runtime-id ID resume
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit workflow-session resume [flags]
+
+Examples:
+  lit workflow-session --host codex --runtime-id SESSION resume
+
+Flags:
+  -h, --help   help for resume
+
+Global Flags:
+      --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
+      --host HOST        Required agent HOST: codex or claude
+      --runtime-id ID    Required explicit vendor runtime session ID
+== lit workflow-session reconcile --help
+Inspect a pending session binding.
+Output is a JSON association record; --format does not apply.
+
+Requirements:
+  Required flags: --host and --runtime-id.
+  Uses the saved runtime binding and endpoint; --endpoint and --project do not apply.
+
+Valid forms:
+  lit workflow-session --host codex|claude --runtime-id ID reconcile
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit workflow-session reconcile [flags]
+
+Examples:
+  lit workflow-session --host codex --runtime-id SESSION reconcile
+
+Flags:
+  -h, --help   help for reconcile
+
+Global Flags:
+      --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
+      --host HOST        Required agent HOST: codex or claude
+      --runtime-id ID    Required explicit vendor runtime session ID
+== lit workflow-session run --help
+Run a tracker command with the bound client.
+Output is forwarded from the tracker command; the adapter supplies --format json.
+Help and version retain their own text output.
+Use the direct lit tracker command for CLI or Markdown output.
+
+Requirements:
+  Required flags: --host and --runtime-id.
+  Required operand: a tracker COMMAND after --. connect is forbidden.
+  The command cannot override --session, --endpoint, --client-id, --runtime-vendor,
+  --runtime-session-id or --format; use the adapter lifecycle.
+  Uses the saved runtime binding and endpoint; --endpoint and --project do not apply.
+
+Valid forms:
+  lit workflow-session --host codex|claude --runtime-id ID run -- COMMAND [ARGS...]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit workflow-session run -- COMMAND [ARGS...] [flags]
+
+Examples:
+  lit workflow-session --host codex --runtime-id SESSION run -- issues list
+
+Flags:
+  -h, --help   help for run
+
+Global Flags:
+      --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
+      --host HOST        Required agent HOST: codex or claude
+      --runtime-id ID    Required explicit vendor runtime session ID
+== lit workflow-session checkout --help
+Record a repository checkout path.
+Output is a JSON association record; --format does not apply.
+
+Requirements:
+  Required flags: --host, --runtime-id, --repository and --path.
+  Requires a saved session with a selected project.
+  Uses the saved runtime binding and endpoint; --endpoint and --project do not apply.
+
+Valid forms:
+  lit workflow-session --host codex|claude --runtime-id ID checkout --repository REF --path DIRECTORY
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit workflow-session checkout [flags]
+
+Examples:
+  lit workflow-session --host codex --runtime-id SESSION checkout --repository github.com/example/repo --path /work/repo
+
+Flags:
+  -h, --help             help for checkout
+      --path DIRECTORY   Required checkout DIRECTORY on this machine
+      --repository REF   Required repository REF to associate with this checkout
+
+Global Flags:
+      --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
+      --host HOST        Required agent HOST: codex or claude
+      --runtime-id ID    Required explicit vendor runtime session ID

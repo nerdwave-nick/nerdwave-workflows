@@ -8,7 +8,8 @@ import (
 
 // grammar is lit's command tree: the single description of which flags and
 // operands each command accepts, how flags repeat, and where items begin.
-// The argument parsers read it; nothing else may restate those rules.
+// The argument parsers, routing and help read it; nothing else may restate
+// those rules. The root's flags apply to every command that does not opt out.
 var grammar = newGrammar()
 
 func choice(values ...string) nwcli.Value { return nwcli.Value{Kind: nwcli.Choice, Choices: values} }
@@ -101,36 +102,42 @@ const globals = "session endpoint format timeout"
 var free = nwcli.Value{}
 
 func newGrammar() *nwcli.Command {
-	root := &nwcli.Command{Name: "lit"}
+	root := &nwcli.Command{Name: "lit", Flags: flags(globals)}
 	add := func(cmds ...*nwcli.Command) { root.Commands = append(root.Commands, cmds...) }
 	add(
-		&nwcli.Command{Name: "connect", Flags: join(flags(globals+" output-format client-id actor-name actor-kind project runtime-vendor runtime-session-id"), switches("session-id-only"))},
-		&nwcli.Command{Name: "disconnect", Flags: flags(globals)},
-		&nwcli.Command{Name: "version", Flags: flags(globals)},
+		&nwcli.Command{Name: "connect", Flags: join(flags("output-format client-id actor-name actor-kind project runtime-vendor runtime-session-id"), switches("session-id-only"))},
+		&nwcli.Command{Name: "disconnect"},
+		&nwcli.Command{Name: "version"},
 		group("session",
-			&nwcli.Command{Name: "get", Flags: join(flags(globals), switches(sessionFields+" session-id service-id status revision"))},
-			&nwcli.Command{Name: "set", Flags: flags(globals + " " + sessionFields)},
-			&nwcli.Command{Name: "unset", Flags: join(flags(globals), switches(sessionFields))},
+			&nwcli.Command{Name: "get", Flags: switches(sessionFields + " session-id service-id status revision")},
+			&nwcli.Command{Name: "set", Flags: flags(sessionFields)},
+			&nwcli.Command{Name: "unset", Flags: switches(sessionFields)},
 		),
 		recordFamily("projects"), recordFamily("issues"), recordFamily("milestones"), recordFamily("comments"),
 		group("claims",
-			&nwcli.Command{Name: "acquire", Operands: refs("REF...", "issues"), Flags: join(flags(globals+" for until project"), switches("force"))},
-			&nwcli.Command{Name: "get", Operands: refs("REF...", "issues"), Flags: flags(globals + " project")},
-			&nwcli.Command{Name: "list", Flags: join(flags(globals+" owner-client-id issue-id direction limit cursor file"), sortFlag("created-at"), switches("all"))},
-			&nwcli.Command{Name: "renew", Operands: refs("[REF...]", "issues"), Flags: join(flags(globals+" for until project"), switches("all"))},
-			&nwcli.Command{Name: "release", Operands: refs("[REF...]", "issues"), Flags: join(flags(globals+" project"), switches("all"))},
+			&nwcli.Command{Name: "acquire", Operands: refs("REF...", "issues"), Flags: join(flags("for until project"), switches("force"))},
+			&nwcli.Command{Name: "get", Operands: refs("REF...", "issues"), Flags: flags("project")},
+			&nwcli.Command{Name: "list", Flags: join(flags("owner-client-id issue-id direction limit cursor file"), sortFlag("created-at"), switches("all"))},
+			&nwcli.Command{Name: "renew", Operands: refs("[REF...]", "issues"), Flags: join(flags("for until project"), switches("all"))},
+			&nwcli.Command{Name: "release", Operands: refs("[REF...]", "issues"), Flags: join(flags("project"), switches("all"))},
 		),
-		group("transactions", &nwcli.Command{Name: "status", Flags: flags(globals + " file")}),
+		group("transactions", &nwcli.Command{Name: "status", Flags: flags("file")}),
 		&nwcli.Command{Name: "grep", Operands: nwcli.Operands{Usage: "PATTERN", Max: 1},
-			Flags: join(flags(globals+" project limit cursor context n"), switches("case-sensitive all-projects"))},
-		&nwcli.Command{Name: "setup-skills", Flags: flags("scope agent path")},
+			Flags: join(flags("project limit cursor context n"), switches("case-sensitive all-projects"))},
+		&nwcli.Command{Name: "setup-skills", Flags: flags("scope agent path"), Without: strings.Fields(globals)},
 		workflowSession(),
+		// Served by the cobra completion command until lit's own scripts land.
+		group("completion", &nwcli.Command{Name: "bash"}, &nwcli.Command{Name: "fish"}, &nwcli.Command{Name: "powershell"}, &nwcli.Command{Name: "zsh"}),
 	)
+	documentGrammar(root)
 	if err := root.Validate(); err != nil {
 		panic(err)
 	}
 	return root
 }
+
+// command returns the grammar of the command at path with inherited flags.
+func command(path ...string) *nwcli.Command { return grammar.Resolve(path...) }
 
 // itemFlag names the flag that begins items in a command, or "" for none.
 func itemFlag(path ...string) string {
@@ -143,16 +150,6 @@ func itemFlag(path ...string) string {
 		})
 	}
 	return name
-}
-
-// grammarFlags maps each flag of a command, fields included, to whether it
-// takes a value.
-func grammarFlags(path ...string) map[string]bool {
-	m := map[string]bool{}
-	if cmd := grammar.Find(path...); cmd != nil {
-		cmd.EachFlag(func(f nwcli.Flag, _ *nwcli.Flag) { m[f.Name] = !f.Switch })
-	}
-	return m
 }
 
 const sessionFields = "project output-format actor-name actor-kind runtime-vendor runtime-session-id"
@@ -173,11 +170,11 @@ func clearFlag(values ...string) []nwcli.Flag {
 // that can describe several records do so through an item flag whose fields
 // describe one record; fields given before it describe the operands.
 func recordFamily(family string) *nwcli.Command {
-	wide := flags(globals + " project file")
+	wide := flags("project file")
 	if family == "issues" || family == "comments" {
 		wide = append(wide, switches("force")...)
 	}
-	plain := flags(globals + " project")
+	plain := flags("project")
 	cmd := func(verb string, operands nwcli.Operands, parts ...[]nwcli.Flag) *nwcli.Command {
 		return &nwcli.Command{Name: verb, Operands: operands, Flags: join(parts...)}
 	}
@@ -186,7 +183,7 @@ func recordFamily(family string) *nwcli.Command {
 	if family == "comments" {
 		sorts = sorts[:2]
 	}
-	list := join(flags(globals+" project file direction limit cursor"), sortFlag(sorts...), switches("all"),
+	list := join(flags("project file direction limit cursor"), sortFlag(sorts...), switches("all"),
 		flags("id query created-after created-before updated-after updated-before"))
 	history := join(plain, flags("request-hash limit cursor"), switches("all"))
 	body := flags("content content-file")
@@ -194,10 +191,10 @@ func recordFamily(family string) *nwcli.Command {
 	switch family {
 	case "projects":
 		g.Commands = []*nwcli.Command{
-			cmd("create", none, flags(globals+" project file"), []nwcli.Flag{item("project-title", free, body, flags("repository"))}),
+			cmd("create", none, flags("project file"), []nwcli.Flag{item("project-title", free, body, flags("repository"))}),
 			cmd("get", refs("[REF...]", "projects"), plain),
 			cmd("list", none, list, flags("title repository-ref")),
-			cmd("update", refs("[REF...]", "projects"), flags(globals+" project file"),
+			cmd("update", refs("[REF...]", "projects"), flags("project file"),
 				[]nwcli.Flag{item("project-id", dynamic("projects"), body, flags("title add-repository remove-repository revision"), clearFlag("content", "repositories"))}),
 			cmd("history", refs("[REF]", "projects"), history),
 		}
@@ -218,10 +215,10 @@ func recordFamily(family string) *nwcli.Command {
 		}
 	case "milestones":
 		g.Commands = []*nwcli.Command{
-			cmd("create", none, flags(globals+" project file"), []nwcli.Flag{item("milestone", free, body, with(flags("issue"), "issue", dynamic("issues"), nwcli.Many))}),
+			cmd("create", none, flags("project file"), []nwcli.Flag{item("milestone", free, body, with(flags("issue"), "issue", dynamic("issues"), nwcli.Many))}),
 			cmd("get", refs("REF...", "milestones"), plain),
 			cmd("list", none, list, flags("title")),
-			cmd("update", refs("[REF...]", "milestones"), flags(globals+" project file"), body, flags("title add-issue remove-issue revision"), clearFlag("content", "issues")),
+			cmd("update", refs("[REF...]", "milestones"), flags("project file"), body, flags("title add-issue remove-issue revision"), clearFlag("content", "issues")),
 			cmd("history", refs("REF", "milestones"), history),
 		}
 	case "comments":
@@ -237,16 +234,18 @@ func recordFamily(family string) *nwcli.Command {
 }
 
 // workflowSession declares the adapter. Its host flags belong to the group and
-// are given before the action; fresh and subagent also accept --endpoint.
+// apply to every action; the adapter supplies session, format and timeout
+// itself, and only fresh and subagent accept --endpoint.
 func workflowSession() *nwcli.Command {
+	bound := []string{"endpoint"}
 	g := group("workflow-session",
-		&nwcli.Command{Name: "fresh", Flags: flags("endpoint project discussion-id")},
-		&nwcli.Command{Name: "subagent", Flags: flags("endpoint project discussion-id parent-runtime-id")},
-		&nwcli.Command{Name: "resume"},
-		&nwcli.Command{Name: "reconcile"},
-		&nwcli.Command{Name: "run", Operands: nwcli.Operands{Usage: "-- COMMAND [ARGS...]", Max: nwcli.Unlimited}},
-		&nwcli.Command{Name: "checkout", Flags: with(flags("repository path"), "repository", free, nwcli.Once)},
+		&nwcli.Command{Name: "fresh", Flags: flags("project discussion-id")},
+		&nwcli.Command{Name: "subagent", Flags: flags("project discussion-id parent-runtime-id")},
+		&nwcli.Command{Name: "resume", Without: bound},
+		&nwcli.Command{Name: "reconcile", Without: bound},
+		&nwcli.Command{Name: "run", Without: bound, Operands: nwcli.Operands{Usage: "-- COMMAND [ARGS...]", Max: nwcli.Unlimited}},
+		&nwcli.Command{Name: "checkout", Without: bound, Flags: with(flags("repository path"), "repository", free, nwcli.Once)},
 	)
-	g.Flags = flags("host runtime-id cli")
+	g.Flags, g.Without = flags("host runtime-id cli"), []string{"session", "format", "timeout"}
 	return g
 }

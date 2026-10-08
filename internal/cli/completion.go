@@ -13,6 +13,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const completionTimeout = time.Second
@@ -93,36 +94,12 @@ func fetchCompletions(cmd *cobra.Command, kind, prefix string) ([]protocol.Compl
 	return result.Items, nil
 }
 
-func addRecordCompletions(c *cobra.Command, family, verb string) {
-	kind := family
-	if family == "claims" {
-		kind = "issues"
+// flagValues reads a flag's values from cobra's parse during completion. The
+// slice interface preserves presence and exact values, unlike GetStringArray.
+func flagValues(c *cobra.Command, name string) []string {
+	f := c.Flags().Lookup(name)
+	if f == nil || !f.Changed {
+		return nil
 	}
-	if protocol.ResourceType(kind) && (verb == "get" || verb == "history" || verb == "update" || verb == "close" || verb == "reopen" || family == "claims" && verb != "list") {
-		complete := completeRecords(kind)
-		c.ValidArgsFunction = func(cmd *cobra.Command, args []string, prefix string) ([]string, cobra.ShellCompDirective) {
-			if verb == "history" && len(args) > 0 {
-				return nil, cobra.ShellCompDirectiveNoFileComp
-			}
-			if all := cmd.Flags().Lookup("all"); family == "claims" && all != nil && all.Changed {
-				return nil, cobra.ShellCompDirectiveNoFileComp
-			}
-			return complete(cmd, args, prefix)
-		}
-	}
-	for flag, resource := range map[string]string{
-		"project": "projects", "project-id": "projects", "parent": "issues", "from": "issues", "to": "issues",
-		"issue": "issues", "add-issue": "issues", "remove-issue": "issues", "comment": "comments", "milestone": "milestones",
-	} {
-		f := c.LocalNonPersistentFlags().Lookup(flag)
-		if f == nil || f.Value.Type() != "stringArray" {
-			continue
-		}
-		if verb == "create" && (family == "issues" && flag == "issue" || family == "milestones" && flag == "milestone") {
-			continue
-		}
-		if err := c.RegisterFlagCompletionFunc(flag, completeRecords(resource)); err != nil {
-			panic(err)
-		}
-	}
+	return f.Value.(pflag.SliceValue).GetSlice()
 }

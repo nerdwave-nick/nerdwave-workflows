@@ -50,6 +50,9 @@ func runTracker(argv []string, out, errOut io.Writer) int {
 		return app.Error(protocol.E(400, "invalid_arguments", e.Error()))
 	}
 	if a.Command == "version" {
+		if len(a.Positionals) > 0 {
+			return app.Error(protocol.E(400, "invalid_arguments", "unexpected positional argument"))
+		}
 		fmt.Fprintln(out, protocol.ReleaseVersion)
 		return 0
 	}
