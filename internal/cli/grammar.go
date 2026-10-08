@@ -97,6 +97,16 @@ func refs(usage, completer string) nwcli.Operands {
 	return nwcli.Operands{Usage: usage, Max: max, Value: dynamic(completer)}
 }
 
+// completionCommand prints a completion script per supported shell.
+func completionCommand() *nwcli.Command {
+	g := group("completion")
+	for _, shell := range nwcli.Shells {
+		g.Commands = append(g.Commands, &nwcli.Command{Name: shell})
+	}
+	g.Without = strings.Fields(globals)
+	return g
+}
+
 // allOrRefs are claim targets, which --all replaces.
 func allOrRefs() nwcli.Operands {
 	o := refs("[REF...]", "issues")
@@ -133,8 +143,7 @@ func newGrammar() *nwcli.Command {
 			Flags: join(flags("project limit cursor context n"), switches("case-sensitive all-projects"))},
 		&nwcli.Command{Name: "setup-skills", Flags: flags("scope agent path"), Without: strings.Fields(globals)},
 		workflowSession(),
-		// Served by the cobra completion command until lit's own scripts land.
-		group("completion", &nwcli.Command{Name: "bash"}, &nwcli.Command{Name: "fish"}, &nwcli.Command{Name: "powershell"}, &nwcli.Command{Name: "zsh"}),
+		completionCommand(),
 	)
 	documentGrammar(root)
 	if err := root.Validate(); err != nil {

@@ -116,27 +116,38 @@ func TestValidateRejectsInconsistentGrammars(t *testing.T) {
 	}
 }
 
-// The package must stay extractable into its own module: standard library only.
+// nwcli must stay extractable into its own module: its packages import only
+// the standard library and each other.
 func TestImportsOnlyStandardLibrary(t *testing.T) {
-	files, err := filepath.Glob("*.go")
-	if err != nil || len(files) == 0 {
-		t.Fatal(files, err)
+	mod, err := os.ReadFile(filepath.Join("..", "..", "go.mod"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, name := range files {
+	own := strings.Fields(strings.SplitN(string(mod), "\n", 2)[0])[1] + "/internal/nwcli"
+	files := 0
+	err = filepath.WalkDir(".", func(name string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(name, ".go") {
+			return err
+		}
+		files++
 		src, err := os.ReadFile(name)
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
 		f, err := parser.ParseFile(token.NewFileSet(), name, src, parser.ImportsOnly)
 		if err != nil {
-			t.Fatal(err)
+			return err
 		}
 		for _, spec := range f.Imports {
 			path, _ := strconv.Unquote(spec.Path.Value)
-			if first := strings.Split(path, "/")[0]; strings.Contains(first, ".") {
-				t.Errorf("%s imports non-standard package %s", name, path)
+			if first := strings.Split(path, "/")[0]; strings.Contains(first, ".") && path != own && !strings.HasPrefix(path, own+"/") {
+				t.Errorf("%s imports %s, outside the standard library and nwcli", name, path)
 			}
 		}
+		return nil
+	})
+	if err != nil || files < 10 {
+		t.Fatal(files, err)
 	}
 }
 

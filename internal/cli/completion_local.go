@@ -9,7 +9,6 @@ import (
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/spf13/cobra"
 )
 
 // completers supply lit's dynamic values: existing records from the service,
@@ -34,23 +33,11 @@ func completeLocal(values func() []string) nwcli.Completer {
 	}
 }
 
-// runCompletion answers the completion scripts' __complete requests from the
-// grammar. Cobra still generates the scripts themselves (lit completion SHELL).
-func runCompletion(argv []string, out, errOut io.Writer) int {
-	if len(argv) > 0 && strings.HasPrefix(argv[0], "__complete") {
-		cands, directive := grammar.Complete(argv[1:], completers)
-		nwcli.WriteCompletion(out, cands, directive, argv[0] == "__complete")
-		return 0
-	}
-	root := &cobra.Command{Use: grammar.Name, SilenceErrors: true, SilenceUsage: true}
-	root.SetOut(out)
-	root.SetErr(errOut)
-	root.InitDefaultCompletionCmd()
-	root.InitDefaultHelpCmd()
-	root.SetArgs(argv)
-	if _, err := root.ExecuteC(); err != nil {
-		return argumentError(argv, out, errOut, err)
-	}
+// runCompletion answers the completion scripts' __complete requests
+// (__completeNoDesc omits descriptions) from the grammar.
+func runCompletion(argv []string, out io.Writer) int {
+	cands, directive := grammar.Complete(argv[1:], completers)
+	nwcli.WriteCompletion(out, cands, directive, argv[0] == "__complete")
 	return 0
 }
 

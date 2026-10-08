@@ -15,7 +15,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+      - run: sudo apt-get update && sudo apt-get install -y zsh fish
       - run: go test -count=1 -race ./...
+        env:
+          NWCLI_REQUIRE_SHELLS: "1" # completion scripts are tested in real bash, zsh and fish
       - run: go vet ./...
       - run: go build -o ./bin/ ./cmd/lit-server ./cmd/lit
   cross-build:

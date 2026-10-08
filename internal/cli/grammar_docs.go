@@ -32,7 +32,10 @@ var workflowSummaries = map[string]string{
 func documentGrammar(root *nwcli.Command) {
 	root.Summary, root.Description = "Track projects and issues with lit", rootDescription
 	root.Walk(func(path []string, c *nwcli.Command) {
-		if len(path) > 0 && path[0] != "completion" {
+		switch {
+		case len(path) > 0 && path[0] == "completion":
+			c.Summary, c.Description = completionDocs(path)
+		case len(path) > 0:
 			c.Summary, c.Description, c.Example = commandDocs(path, len(c.Commands) > 0)
 		}
 		for i := range c.Flags {
@@ -42,7 +45,21 @@ func documentGrammar(root *nwcli.Command) {
 			}
 		}
 	})
-	root.Find("completion").Summary = topSummaries["completion"]
+}
+
+// completionDocs explains how to load each shell's completion script.
+func completionDocs(path []string) (summary, description string) {
+	if len(path) == 1 {
+		return topSummaries["completion"], "Generate the autocompletion script for lit for the specified shell: bash, fish or zsh.\nSee each sub-command's help for details on how to use the generated script."
+	}
+	summary = "Generate the autocompletion script for " + path[1]
+	switch path[1] {
+	case "bash":
+		return summary, summary + " (bash 4.4 or later).\n\nTo load completions in your current shell session:\n\n\tsource <(lit completion bash)\n\nTo load completions for every new session, add that line to ~/.bashrc."
+	case "zsh":
+		return summary, summary + " (zsh 5.8 or later).\n\nIf shell completion is not already enabled in your environment, enable it once:\n\n\tautoload -U compinit; compinit\n\nTo load completions in your current shell session:\n\n\tsource <(lit completion zsh)\n\nTo load completions for every new session, save the script as _lit in a directory on $fpath,\nfor example:\n\n\tlit completion zsh > \"${fpath[1]}/_lit\"\n\nStart a new shell for this setup to take effect."
+	}
+	return summary, summary + " (fish 3.4 or later).\n\nTo load completions in your current shell session:\n\n\tlit completion fish | source\n\nTo load completions for every new session, run once:\n\n\tlit completion fish > ~/.config/fish/completions/lit.fish"
 }
 
 func commandDocs(path []string, group bool) (summary, description, example string) {

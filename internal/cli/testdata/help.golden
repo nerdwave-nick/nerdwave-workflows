@@ -2061,3 +2061,73 @@ Global Flags:
       --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
       --host HOST        Required agent HOST: codex or claude
       --runtime-id ID    Required explicit vendor runtime session ID
+== lit completion --help
+Generate the autocompletion script for lit for the specified shell: bash, fish or zsh.
+See each sub-command's help for details on how to use the generated script.
+
+Usage:
+  lit completion [flags]
+  lit completion [command]
+
+Available Commands:
+  bash        Generate the autocompletion script for bash
+  fish        Generate the autocompletion script for fish
+  zsh         Generate the autocompletion script for zsh
+
+Flags:
+  -h, --help   help for completion
+
+Use "lit completion [command] --help" for more information about a command.
+== lit completion bash --help
+Generate the autocompletion script for bash (bash 4.4 or later).
+
+To load completions in your current shell session:
+
+	source <(lit completion bash)
+
+To load completions for every new session, add that line to ~/.bashrc.
+
+Usage:
+  lit completion bash [flags]
+
+Flags:
+  -h, --help   help for bash
+== lit completion fish --help
+Generate the autocompletion script for fish (fish 3.4 or later).
+
+To load completions in your current shell session:
+
+	lit completion fish | source
+
+To load completions for every new session, run once:
+
+	lit completion fish > ~/.config/fish/completions/lit.fish
+
+Usage:
+  lit completion fish [flags]
+
+Flags:
+  -h, --help   help for fish
+== lit completion zsh --help
+Generate the autocompletion script for zsh (zsh 5.8 or later).
+
+If shell completion is not already enabled in your environment, enable it once:
+
+	autoload -U compinit; compinit
+
+To load completions in your current shell session:
+
+	source <(lit completion zsh)
+
+To load completions for every new session, save the script as _lit in a directory on $fpath,
+for example:
+
+	lit completion zsh > "${fpath[1]}/_lit"
+
+Start a new shell for this setup to take effect.
+
+Usage:
+  lit completion zsh [flags]
+
+Flags:
+  -h, --help   help for zsh

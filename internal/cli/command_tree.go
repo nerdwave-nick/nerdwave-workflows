@@ -14,15 +14,9 @@ import (
 // the completion tree.
 func Run(argv []string, out, errOut io.Writer) int {
 	if len(argv) > 0 && strings.HasPrefix(argv[0], "__complete") {
-		return runCompletion(argv, out, errOut)
+		return runCompletion(argv, out)
 	}
 	r := grammar.Route(argv)
-	if len(r.Path) > 0 && r.Path[0] == "completion" {
-		if r.Help {
-			argv = append(append([]string{}, r.Path...), "--help")
-		}
-		return runCompletion(argv, out, errOut)
-	}
 	where := strings.Join(append([]string{grammar.Name}, r.Path...), " ")
 	switch {
 	case r.Unknown != "":
@@ -34,6 +28,14 @@ func Run(argv []string, out, errOut io.Writer) int {
 		return argumentError(argv, out, errOut, &nwcli.ParseError{Kind: nwcli.MissingCommand, Command: where})
 	}
 	switch r.Path[0] {
+	case "completion":
+		if _, err := grammar.Parse(argv); err != nil {
+			return argumentError(argv, out, errOut, err)
+		}
+		if err := nwcli.WriteScript(out, r.Path[1], grammar.Name, "__complete"); err != nil {
+			return argumentError(argv, out, errOut, err)
+		}
+		return 0
 	case "setup-skills", "workflow-session":
 		p, err := grammar.Parse(argv)
 		if err != nil {

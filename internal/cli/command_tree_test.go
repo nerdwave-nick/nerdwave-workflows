@@ -28,11 +28,15 @@ func TestScopedCommandHelp(t *testing.T) {
 	}
 }
 func TestCompletionCommands(t *testing.T) {
-	for _, shell := range []string{"bash", "zsh", "fish", "powershell"} {
+	for _, shell := range []string{"bash", "zsh", "fish"} {
 		var out, err bytes.Buffer
-		if code := Run([]string{"completion", shell}, &out, &err); code != 0 || out.Len() < 500 {
+		if code := Run([]string{"completion", shell}, &out, &err); code != 0 || out.Len() < 500 || !strings.Contains(out.String(), "__complete") || !strings.Contains(out.String(), "_lit") {
 			t.Fatalf("%s: %d %s", shell, code, &err)
 		}
+	}
+	var unsupported, errOut bytes.Buffer
+	if code := Run([]string{"completion", "powershell"}, &unsupported, &errOut); code != 2 || !strings.Contains(unsupported.String()+errOut.String(), "invalid_arguments") {
+		t.Fatalf("powershell: %d %s %s", code, &unsupported, &errOut)
 	}
 	var out, err bytes.Buffer
 	if code := Run([]string{"__complete", "issues", "list", "--state", ""}, &out, &err); code != 0 || !strings.Contains(out.String(), "open") || !strings.Contains(out.String(), "closed") {

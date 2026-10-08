@@ -35,10 +35,12 @@ it never creates or reconnects a session or installs skills.
 
 ## Shell completion
 
-Generate completion with the same installed `lit` that you run. These commands
-print scripts; they never modify your shell configuration automatically.
+Generate completion with the same installed `lit` that you run. Completion is
+available for bash (4.4 or later), zsh (5.8 or later) and fish (3.4 or later).
+These commands print scripts; they never modify your shell configuration
+automatically.
 
-For the current Bash shell:
+For the current Bash shell (no bash-completion package is required):
 
 ```bash
 source <(lit completion bash)
@@ -58,13 +60,8 @@ compinit
 source <(lit completion zsh)
 ```
 
-For the current PowerShell session:
-
-```powershell
-lit completion powershell | Out-String | Invoke-Expression
-```
-
 `lit completion SHELL --help` explains persistent installation for your shell.
+Other shells have no completion script.
 Command names, flag names and fixed values such as `--format cli|markdown|json`,
 `--state open|closed`, `--scope local|user|custom`, and `--agent codex|claude|both`
 complete without contacting the service. Existing project, issue, milestone and
@@ -145,10 +142,6 @@ boundary as other records.
 
 CLI argument errors retain the JSON error contract with `--format json` and exit
 code 2. Service and reconciliation outcomes retain their existing exit codes.
-
-Implementation references: [Cobra user guide](https://github.com/spf13/cobra/blob/main/site/content/user_guide.md),
-[Cobra completion guide](https://github.com/spf13/cobra/blob/main/site/content/completions/_index.md),
-and [pflag](https://github.com/spf13/pflag).
 
 ## Existing record references
 

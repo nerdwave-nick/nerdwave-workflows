@@ -15,9 +15,6 @@ func renderAllHelp(t *testing.T) string {
 	t.Helper()
 	var all strings.Builder
 	grammar.Walk(func(path []string, _ *nwcli.Command) {
-		if len(path) > 0 && path[0] == "completion" {
-			return // cobra renders completion help until lit's own scripts land
-		}
 		var out, errOut bytes.Buffer
 		argv := append(append([]string{}, path...), "--help")
 		if code := Run(argv, &out, &errOut); code != 0 || errOut.Len() != 0 {
