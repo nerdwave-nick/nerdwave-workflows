@@ -1,10 +1,12 @@
 ---
 name: planner
 description: Chart and resolve a persistent map of planning decisions in lit, using decision tickets, evidence, and human discussion before implementation.
-disable-model-invocation: true
 ---
 
 # Planner
+
+Run this skill only when the user requested it. Otherwise propose it and run it
+only after the user confirms.
 
 Load the shared [lit skill](../lit/SKILL.md) first for session, project, claim,
 recovery, and cross-repository policy. Read skills by their installed discovery

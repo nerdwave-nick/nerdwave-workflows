@@ -1,10 +1,12 @@
 ---
 name: triage
 description: Evaluate incoming lit issues, reproduce reported behavior, and record the requested or agreed disposition with evidence and related decisions.
-disable-model-invocation: true
 ---
 
 # Triage
+
+Run this skill only when the user requested it. Otherwise propose it and run it
+only after the user confirms.
 
 Use [lit guidance](../lit/SKILL.md) for tracker/session context, ownership, recovery,
 and installed CLI syntax. Load repository tracker and triage-label conventions,

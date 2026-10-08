@@ -113,7 +113,7 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
-			for _, name := range []string{"planner", "to-spec", "to-tickets", "triage", "what", "i-have-adhd"} {
+			for _, name := range []string{"what", "i-have-adhd"} {
 				b, err := os.ReadFile(filepath.Join(skills, name, "SKILL.md"))
 				if err != nil || !bytes.Contains(b, []byte("disable-model-invocation: true")) {
 					t.Fatalf("Claude policy %s: %v", name, err)
@@ -121,6 +121,16 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 				b, err = os.ReadFile(filepath.Join(skills, name, "agents", "openai.yaml"))
 				if err != nil || !bytes.Contains(b, []byte("allow_implicit_invocation: false")) {
 					t.Fatalf("Codex policy %s: %v", name, err)
+				}
+			}
+			for _, name := range []string{"planner", "to-spec", "to-tickets", "triage"} {
+				b, err := os.ReadFile(filepath.Join(skills, name, "SKILL.md"))
+				if err != nil || bytes.Contains(b, []byte("disable-model-invocation: true")) || !bytes.Contains(b, []byte("Run this skill only when the user requested it.")) {
+					t.Fatalf("Claude confirmation-gated policy %s: %v", name, err)
+				}
+				b, err = os.ReadFile(filepath.Join(skills, name, "agents", "openai.yaml"))
+				if err != nil || bytes.Contains(b, []byte("allow_implicit_invocation: false")) {
+					t.Fatalf("Codex confirmation-gated policy %s: %v", name, err)
 				}
 			}
 			if err := filepath.WalkDir(hostRoot, func(path string, d fs.DirEntry, err error) error {

@@ -1,10 +1,12 @@
 ---
 name: to-spec
 description: Synthesize settled discussion or requirements into a shared specification in lit, preserving agreed decisions and unresolved boundaries.
-disable-model-invocation: true
 ---
 
 # To spec
+
+Run this skill only when the user requested it. Otherwise propose it and run it
+only after the user confirms.
 
 Turn existing discussion, requirements, or a referenced issue into a specification.
 No planner map or earlier skill invocation is required. Synthesize settled choices;

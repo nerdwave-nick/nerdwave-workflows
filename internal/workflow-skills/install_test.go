@@ -18,6 +18,9 @@ func put(t *testing.T, p, s string) {
 		t.Fatal(e)
 	}
 }
+
+const confirmGate = "Run this skill only when the user requested it. Otherwise propose it and run it\nonly after the user confirms."
+
 func TestInstallRepeatAndPreserve(t *testing.T) {
 	p := t.TempDir()
 	f := filepath.Join(p, ".codex", "AGENTS.md")
@@ -294,7 +297,7 @@ func TestInstalledBundleBytesAndMetadata(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, n := range []string{"planner", "to-spec", "to-tickets", "triage", "what", "i-have-adhd"} {
+	for _, n := range []string{"what", "i-have-adhd"} {
 		b, e := os.ReadFile(filepath.Join(p, ".codex", "skills", n, "agents", "openai.yaml"))
 		if e != nil || !strings.Contains(string(b), "allow_implicit_invocation: false") {
 			t.Fatalf("%s Codex explicit policy missing: %s %v", n, b, e)
@@ -302,6 +305,19 @@ func TestInstalledBundleBytesAndMetadata(t *testing.T) {
 		b, e = os.ReadFile(filepath.Join(p, ".claude", "skills", n, "SKILL.md"))
 		if e != nil || !strings.Contains(string(b), "disable-model-invocation: true") {
 			t.Fatalf("%s Claude explicit policy missing", n)
+		}
+	}
+	for _, n := range []string{"planner", "to-spec", "to-tickets", "triage"} {
+		b, e := os.ReadFile(filepath.Join(p, ".codex", "skills", n, "agents", "openai.yaml"))
+		if e != nil || strings.Contains(string(b), "allow_implicit_invocation: false") {
+			t.Fatalf("%s Codex policy must allow implicit invocation: %s %v", n, b, e)
+		}
+		b, e = os.ReadFile(filepath.Join(p, ".claude", "skills", n, "SKILL.md"))
+		if e != nil || strings.Contains(string(b), "disable-model-invocation: true") {
+			t.Fatalf("%s Claude policy must allow model invocation: %v", n, e)
+		}
+		if !strings.Contains(string(b), confirmGate) {
+			t.Fatalf("%s confirmation gate missing", n)
 		}
 	}
 }

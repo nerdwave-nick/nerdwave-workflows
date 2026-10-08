@@ -1,10 +1,12 @@
 ---
 name: to-tickets
 description: Turn requirements or an agreed specification into reviewed, verifiable implementation tickets and real blocking links in lit.
-disable-model-invocation: true
 ---
 
 # To tickets
+
+Run this skill only when the user requested it. Otherwise propose it and run it
+only after the user confirms.
 
 Accept a plan, specification, existing discussion, or issue directly. No planner
 prerequisite is needed. Read [lit guidance](../lit/SKILL.md), repository tracker and

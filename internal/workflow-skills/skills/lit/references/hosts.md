@@ -33,8 +33,9 @@ installation, hooks, or service startup are changed.
 
 Codex uses `SKILL.md` with `agents/openai.yaml` invocation policy and `$lit`;
 Claude uses `SKILL.md` frontmatter and `/lit`. The canonical source preserves both
-hosts' explicit-only metadata for planner, to-spec, to-tickets, triage, what, and
-i-have-adhd. Installation copies both forms unchanged. If discovery is unavailable,
+hosts' explicit-only metadata for what and i-have-adhd. Planner, to-spec,
+to-tickets, and triage stay model-invocable but open with a gate: run only when
+the user requested them or confirmed a proposal. Installation copies both forms unchanged. If discovery is unavailable,
 read the installed `lit/SKILL.md` directly. Do not assume a generic Skill tool. These adapters select tracker identity;
 they do not invoke either model CLI or assume vendor environment variables.
 
