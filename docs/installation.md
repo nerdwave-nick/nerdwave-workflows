@@ -68,7 +68,7 @@ reference for explicit session setup.
 CI cross-builds seven binaries across five targets: Linux amd64/arm64 archives
 contain `lit-server` and `lit`; macOS amd64/arm64 and Windows amd64 archives contain
 only `lit` (`lit.exe` on Windows). All archives contain `INSTALL.md`; Linux
-archives also contain the optional `lit.service.in` template. Skills are embedded
+archives also contain the optional `lit.service.in` template and `lit.socket` unit. Skills are embedded
 in the client, so no separate installer or Python program is included.
 
 Pull requests run Go race tests, vet, and cross-builds. Version tags
@@ -227,13 +227,47 @@ Login-time enablement is a separate `systemctl --user enable lit.service`
 decision. No persistent service, lingering, or machine-wide configuration is
 installed or enabled automatically.
 
+### Optional socket activation
+
+Instead of running `lit-server` continuously, systemd can hold the listening
+socket and start the service on the first connection. Install the service unit
+as above, then copy `packaging/lit.socket` (also in Linux archives) beside it as
+`${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/lit.socket`. Its `ListenStream=`
+is the default `127.0.0.1:7411`; edit it to change the address.
+
+While socket-activated, the socket's address replaces the configured listener:
+`--listen`, `LIT_LISTEN`, and the JSON `listen` field are still validated but not
+bound. The inherited socket must be exactly one loopback TCP listener. Anything else,
+such as a wildcard or public address, a Unix socket path, several `Listen*` lines,
+or `Accept=yes`, is unsupported; the service exits with an error rather than
+serving it. The log reports
+`lit-server listening ADDRESS (socket-activated)`.
+
+Enable the socket, not the service:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user enable --now lit.socket
+systemctl --user status lit.socket lit.service
+```
+
+The `lit` client is unchanged and still never starts the service itself; its
+first connection to the socket causes systemd to start `lit-server`. The service
+does not exit when idle; it keeps running until stopped. Stopping only
+`lit.service` leaves the socket listening, so the next connection starts it
+again. To turn activation off, run `systemctl --user disable --now lit.socket`
+and stop `lit.service`.
+
 ## Manual updates
 
 Stop the foreground service or user service before replacing its executable.
+With socket activation, stop `lit.socket` as well as `lit.service`, so that a
+client connection cannot start the old executable during replacement.
 Run `go install` again for the chosen source/version, or verify and extract the
 chosen archive and copy its binaries. Rerun `lit setup-skills` with the same
 scope/agent/path selection to update the installed skill bundle. Review any
-reported local edits before proceeding. Explicitly restart the service afterward.
+reported local edits before proceeding. Explicitly restart the service afterward
+(with socket activation, start `lit.socket` again).
 Service identity and records remain in the existing data directory. Unsupported
 persisted formats are refused without conversion; there is no automatic updater
 or tracker migration tool.

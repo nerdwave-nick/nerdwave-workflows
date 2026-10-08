@@ -64,12 +64,13 @@ jobs:
             if [[ "$GOOS" == linux ]]; then
               go build -trimpath -ldflags "-X github.com/nerdwave-nick/nerdwave-workflows/internal/protocol.ReleaseVersion=$RELEASE_VERSION" -o "$destination/" ./cmd/lit-server
               cp packaging/lit.service.in "$destination/lit.service.in"
+              cp packaging/lit.socket "$destination/lit.socket"
             fi
             archive="lit-${RELEASE_VERSION}-${GOOS}-${GOARCH}"
             if [[ "$GOOS" == windows ]]; then
               (cd "$destination" && zip "../$archive.zip" lit.exe INSTALL.md)
             elif [[ "$GOOS" == linux ]]; then
-              tar -czf "dist/$archive.tar.gz" -C "$destination" lit-server lit INSTALL.md lit.service.in
+              tar -czf "dist/$archive.tar.gz" -C "$destination" lit-server lit INSTALL.md lit.service.in lit.socket
             else
               tar -czf "dist/$archive.tar.gz" -C "$destination" lit INSTALL.md
             fi

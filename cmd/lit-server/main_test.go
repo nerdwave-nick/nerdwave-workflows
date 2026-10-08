@@ -23,7 +23,7 @@ func TestServiceScopedHelpIsOffline(t *testing.T) {
 		if strings.Contains(out.String(), "Available Commands:") {
 			t.Fatalf("daemon still advertises subcommands: %s", &out)
 		}
-		for _, want := range []string{"--config", "--data-dir", "--listen", "127.0.0.1:7411", "optional", "loopback", "LIT_CONFIG_FILE", "Examples:"} {
+		for _, want := range []string{"--config", "--data-dir", "--listen", "127.0.0.1:7411", "optional", "loopback", "LIT_CONFIG_FILE", "socket activation", "Examples:"} {
 			if !strings.Contains(out.String(), want) {
 				t.Errorf("%v missing %q: %s", args, want, &out)
 			}

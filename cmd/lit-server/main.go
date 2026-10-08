@@ -6,7 +6,6 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -28,7 +27,7 @@ func runService(c service.Config, errOut io.Writer) int {
 		fmt.Fprintln(errOut, e)
 		return 1
 	}
-	ln, e := net.Listen("tcp", c.Listen)
+	ln, activated, e := listen(c.Listen)
 	if e != nil {
 		fmt.Fprintln(errOut, "cannot listen:", e)
 		return 1
@@ -36,7 +35,11 @@ func runService(c service.Config, errOut io.Writer) int {
 	srv := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second}
 	done := make(chan error, 1)
 	go func() { done <- srv.Serve(ln) }()
-	fmt.Fprintln(errOut, "lit-server listening", ln.Addr())
+	if activated {
+		fmt.Fprintln(errOut, "lit-server listening", ln.Addr(), "(socket-activated)")
+	} else {
+		fmt.Fprintln(errOut, "lit-server listening", ln.Addr())
+	}
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sig)

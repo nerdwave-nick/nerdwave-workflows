@@ -1,0 +1,10 @@
+[Unit]
+Description=lit-server per-user issue tracker socket
+
+[Socket]
+# Must be a single loopback IP:PORT; lit-server refuses any other inherited socket.
+# It replaces the server's configured listen address while socket-activated.
+ListenStream=127.0.0.1:7411
+
+[Install]
+WantedBy=sockets.target

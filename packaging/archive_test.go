@@ -65,6 +65,7 @@ func TestReleaseArchives(t *testing.T) {
 			if strings.HasPrefix(target, "linux-") {
 				expected["lit-server"] = true
 				expected["lit.service.in"] = true
+				expected["lit.socket"] = true
 			}
 			members := map[string]bool{}
 			contents := map[string][]byte{}

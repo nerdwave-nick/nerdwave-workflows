@@ -22,7 +22,9 @@ LIT_CONFIG_FILE or --config explicitly selects a file that must exist.
 Default data directory: ${XDG_DATA_HOME:-$HOME/.local/share}/lit-server.
 Default listener: 127.0.0.1:7411. Listen requires an explicit loopback IP address
 (127.0.0.1 or ::1) and a port from 0 to 65535; port 0 asks the OS for a free port.
-Existing JSON config must have schema_version: 1. Changes require a restart.`, Example: "  lit-server\n  lit-server --data-dir /tmp/lit-poc --listen 127.0.0.1:7411\n  lit-server --config /path/to/config.json", Args: func(cmd *cobra.Command, args []string) error {
+Existing JSON config must have schema_version: 1. Changes require a restart.
+Under systemd socket activation, the single inherited loopback socket replaces
+the listen address.`, Example: "  lit-server\n  lit-server --data-dir /tmp/lit-poc --listen 127.0.0.1:7411\n  lit-server --config /path/to/config.json", Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 1 && args[0] == "help" && cmd.ArgsLenAtDash() < 0 {
 			return nil
 		}
