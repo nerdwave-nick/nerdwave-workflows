@@ -33,6 +33,16 @@ Replace `latest` with a published tag to pin a version. Remote publication and
 installation availability have not been verified; these commands describe the
 supported Go interface, not an already published release.
 
+## Shell completion
+
+`lit` prints completion scripts for bash (4.4 or later), zsh (5.8 or later) and
+fish (3.4 or later); bash needs no bash-completion package. Load one into the
+current shell with `source <(lit completion bash)`, `source <(lit completion zsh)`
+after `compinit`, or `lit completion fish | source`. `lit completion SHELL --help`
+explains loading it in every new shell. Other shells, including the Windows
+client's, have no completion script. See [CLI help](cli-help.md#shell-completion)
+for what completes.
+
 ## Install embedded workflow skills
 
 The installed CLI contains the sixteen workflow skills and their instruction

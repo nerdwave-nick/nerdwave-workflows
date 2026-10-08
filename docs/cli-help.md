@@ -17,7 +17,7 @@ argument grammar and examples. Each application command has a Requirements secti
 and Valid forms showing alternatives: brackets mean optional inputs, `|` separates
 choices, and `...` means repeatable. Flag descriptions distinguish required,
 conditional and optional inputs; conditional inputs depend on the chosen form or
-a saved selection, so they are not unconditional Cobra requirements.
+a saved selection, so they are not unconditional requirements.
 
 `connect` needs no flags. It uses `--session NAME`, then `LIT_SESSION`, or creates
 a fresh random throwaway name when neither is supplied. The result exposes
@@ -104,9 +104,11 @@ See the [completion API](completion-api.md) for the metadata projection and limi
 
 ## Batch and literal arguments
 
-The Cobra command tree preserves the ordered domain argument grammar. Repeated
-item boundary flags start atomic items; scalar duplicates within one item fail.
-For example:
+Arguments are parsed in order against lit's command grammar, so flag order is
+meaningful. An item flag such as `--project-title`, `--issue` or `--from` begins
+another atomic item, and owns that item's fields: each field may be given once per
+item (accumulating fields such as `--label` or `--to` any number of times); a
+field repeated within one item fails. For example:
 
 ```sh
 lit projects create --session demo \
