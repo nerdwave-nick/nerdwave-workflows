@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"net/url"
 	"strconv"
@@ -13,68 +14,15 @@ func parseRecordArgs(argv []string, a Args) (Args, error) {
 	seenCommand, seenVerb := false, false
 	group := map[string][]string{}
 	a.Groups = append(a.Groups, group)
-	global := map[string]bool{"session": true, "endpoint": true, "format": true, "timeout": true, "project": true}
-	boundary := "issue"
-	if a.Command == "milestones" {
-		boundary = "milestone"
-	}
-	if a.Command == "comments" && a.Verb != "create" {
-		boundary = "comment"
-	}
-	allowed := map[string]bool{}
-	fields := []string{}
-	switch a.Verb {
-	case "create":
-		fields = []string{boundary, "content", "content-file", "file"}
-		if a.Command == "issues" {
-			fields = append(fields, "parent", "state", "label", "assignee")
-		} else if a.Command == "milestones" {
-			fields = append(fields, "issue")
-		} else {
-			fields = append(fields, "author")
-		}
-	case "update":
-		fields = []string{"content", "content-file", "clear", "revision", "file"}
-		if a.Command == "issues" {
-			fields = append(fields, boundary)
-			fields = append(fields, "title", "parent", "state", "assignee", "add-label", "remove-label")
-		} else if a.Command == "milestones" {
-			fields = append(fields, "title", "add-issue", "remove-issue")
-		} else {
-			fields = append(fields, boundary)
-			fields = append(fields, "author")
-		}
-	case "close", "reopen":
-		if a.Command != "issues" {
+	cmd := grammar.Find(a.Command, a.Verb)
+	if a.Verb == "" || cmd == nil {
+		switch {
+		case a.Verb == "close" || a.Verb == "reopen":
 			return a, fmt.Errorf("unknown comment command")
-		}
-		fields = []string{boundary, "revision", "file"}
-	case "link", "unlink":
-		if a.Command != "issues" {
+		case a.Verb == "link" || a.Verb == "unlink":
 			return a, fmt.Errorf("unsupported relation command")
 		}
-		fields = []string{"from", "to", "relation", "file"}
-		boundary = "from"
-	case "get":
-	case "list":
-		fields = append([]string{"sort", "direction", "limit", "cursor", "file"}, queryFlags(a.Command)...)
-		allowed["all"] = false
-		if a.Command == "issues" {
-			allowed["all-projects"] = false
-		} else if a.Command == "comments" {
-			fields = append(fields, "issue")
-		}
-	case "history":
-		fields = []string{"request-hash", "limit", "cursor"}
-		allowed["all"] = false
-	default:
 		return a, fmt.Errorf("unknown resource command")
-	}
-	if a.Command != "milestones" && (a.Verb == "create" || a.Verb == "update" || a.Verb == "close" || a.Verb == "reopen" || a.Verb == "link" || a.Verb == "unlink") {
-		allowed["force"] = false
-	}
-	for _, k := range fields {
-		allowed[k] = true
 	}
 	for i := 0; i < len(argv); i++ {
 		v := argv[i]
@@ -82,7 +30,10 @@ func parseRecordArgs(argv []string, a Args) (Args, error) {
 			a.Positionals = append(a.Positionals, argv[i+1:]...)
 			break
 		}
-		v = expandShorthand(v)
+		v = cmd.ExpandShort(v)
+		if len(v) > 1 && v[0] == '-' && v[1] != '-' {
+			return a, fmt.Errorf("unknown flag %s", v)
+		}
 		if !strings.HasPrefix(v, "--") {
 			if !seenCommand && v == a.Command {
 				seenCommand = true
@@ -97,11 +48,8 @@ func parseRecordArgs(argv []string, a Args) (Args, error) {
 		}
 		parts := strings.SplitN(strings.TrimPrefix(v, "--"), "=", 2)
 		k := parts[0]
-		valueNeeded, ok := allowed[k]
-		if global[k] {
-			valueNeeded = true
-			ok = true
-		}
+		f, owner, ok := cmd.Lookup(k)
+		valueNeeded := !f.Switch
 		if !ok {
 			if a.Command == "comments" && a.Verb == "create" && k == "comment" {
 				return a, fmt.Errorf("comments create: use --issue ISSUE_REF instead of --comment")
@@ -123,15 +71,14 @@ func parseRecordArgs(argv []string, a Args) (Args, error) {
 			return a, fmt.Errorf("--%s takes no value", k)
 		}
 		dst := a.Values
-		if !global[k] && k != "file" && k != "force" {
-			if k == boundary && (a.Verb == "create" || a.Verb == "update" || a.Verb == "close" || a.Verb == "reopen" || a.Verb == "link" || a.Verb == "unlink") {
+		if owner != nil || cmd.StartsItem(k) || !cmd.HasItems() && !invocationFlags[k] {
+			if cmd.StartsItem(k) {
 				group = map[string][]string{}
 				a.Groups = append(a.Groups, group)
 			}
 			dst = group
 		}
-		repeat := querySet(k) || k == "to" || k == "label" || k == "add-label" || k == "remove-label" || k == "clear" || a.Command == "milestones" && a.Verb == "create" && k == "issue" || k == "add-issue" || k == "remove-issue"
-		if len(dst[k]) > 0 && !repeat {
+		if len(dst[k]) > 0 && f.Repeat != nwcli.Many {
 			return a, fmt.Errorf("duplicate flag --%s", k)
 		}
 		dst[k] = append(dst[k], value)
@@ -206,13 +153,7 @@ func (a *App) recordInputs() ([]protocol.ProjectInput, error) {
 	if len(groups) == 0 && len(a.Args.Positionals) > 0 {
 		groups = []map[string][]string{{}}
 	}
-	boundary := "issue"
-	if resource == "milestones" {
-		boundary = "milestone"
-	}
-	if resource == "comments" && kind != "create" {
-		boundary = "comment"
-	}
+	boundary := itemFlag(resource, kind)
 	for _, g := range groups {
 		one := func(k string) string {
 			if len(g[k]) > 0 {

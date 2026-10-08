@@ -64,3 +64,16 @@ func TestQueryFlagHelpAndCompletion(t *testing.T) {
 		t.Fatalf("-q value completion: %v %s", values, directive)
 	}
 }
+
+func TestUndeclaredShorthandIsRejected(t *testing.T) {
+	for _, argv := range [][]string{{"claims", "list", "-q", "x"}, {"issues", "get", "-x"}, {"projects", "list", "-z"}, {"connect", "-s", "x"}} {
+		if _, err := Parse(argv); err == nil || !strings.Contains(err.Error(), "unknown flag -") {
+			t.Errorf("%v: %v", argv, err)
+		}
+	}
+	for _, argv := range [][]string{{"issues", "get", "-"}, {"issues", "get", "--", "-x"}} {
+		if _, err := Parse(argv); err != nil {
+			t.Errorf("%v rejected: %v", argv, err)
+		}
+	}
+}

@@ -1,7 +1,5 @@
 package cli
 
-import "strings"
-
 var flagDescriptions = map[string]string{
 	"session-id-only": "Print only the logical session name and a newline on success; overrides output formatting, not saved preferences",
 	"session":         "Conditional. Logical session `NAME`; --session > LIT_SESSION; see requirements", "endpoint": "Service `URL`; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411", "format": "Output `FORMAT`: cli, markdown or json (otherwise session preference)", "timeout": "Positive request `DURATION`, for example 30s (default 30s)",
@@ -14,66 +12,8 @@ func init() {
 	flagDescriptions["remove-issue"] = "Remove issue `REF` from milestone membership (repeatable)"
 }
 
-func commandFlags(family, verb string) map[string]bool {
-	if family == "session" || family == "claims" || family == "transactions" {
-		return allowedFlags(Args{Command: family, Verb: verb})
-	}
-	m := map[string]bool{"project": true}
-	add := func(names string) {
-		for _, k := range strings.Fields(names) {
-			m[k] = true
-		}
-	}
-	switch verb {
-	case "create":
-		add("content content-file file")
-		switch family {
-		case "projects":
-			add("project-title repository")
-		case "issues":
-			add("issue parent state label assignee")
-		case "milestones":
-			add("milestone issue")
-		case "comments":
-			add("issue author")
-		}
-	case "update":
-		add("content content-file clear revision file")
-		switch family {
-		case "projects":
-			add("project-id title add-repository remove-repository")
-		case "issues":
-			add("issue title parent state assignee add-label remove-label")
-		case "milestones":
-			add("title add-issue remove-issue")
-		case "comments":
-			add("comment author")
-		}
-	case "close", "reopen":
-		add("issue revision file")
-	case "link", "unlink":
-		add("from to relation file")
-	case "list":
-		add("sort direction limit cursor file")
-		for _, k := range queryFlags(family) {
-			m[k] = true
-		}
-		m["all"] = false
-		if family == "issues" {
-			m["all-projects"] = false
-		}
-		if family == "comments" {
-			m["issue"] = true
-		}
-	case "history":
-		add("request-hash limit cursor")
-		m["all"] = false
-	}
-	if family != "projects" && family != "milestones" && (verb == "create" || verb == "update" || verb == "close" || verb == "reopen" || verb == "link" || verb == "unlink") {
-		m["force"] = false
-	}
-	return m
-}
+// commandFlags maps each flag of a command to whether it takes a value.
+func commandFlags(family, verb string) map[string]bool { return grammarFlags(family, verb) }
 func commandUsage(f, v string) string {
 	if f == "projects" && v == "get" {
 		return " [REF...]"

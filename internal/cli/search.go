@@ -12,6 +12,7 @@ import (
 
 func parseSearchArgs(argv []string, a Args) (Args, error) {
 	a.Verb = ""
+	cmd := grammar.Find("grep")
 	seenCommand, literal := false, false
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]
@@ -35,27 +36,15 @@ func parseSearchArgs(argv []string, a Args) (Args, error) {
 			a.Positionals = append(a.Positionals, arg)
 			continue
 		}
-		key := strings.TrimPrefix(arg, "--")
-		if arg == "-n" {
-			key = "n"
-		}
-		if strings.HasPrefix(arg, "-C") {
-			key = "context"
-			if len(arg) > 2 {
-				key += "=" + strings.TrimPrefix(arg[2:], "=")
-			}
-		}
-		parts := strings.SplitN(key, "=", 2)
-		key = parts[0]
-		takes := false
-		switch key {
-		case "session", "endpoint", "format", "timeout", "project", "limit", "cursor", "context":
-			takes = true
-		case "n", "case-sensitive", "all-projects":
-		default:
+		expanded := cmd.ExpandShort(arg)
+		parts := strings.SplitN(strings.TrimPrefix(expanded, "--"), "=", 2)
+		key := parts[0]
+		f, ok := cmd.Flag(key)
+		if !ok || !strings.HasPrefix(expanded, "--") {
 			return a, fmt.Errorf("unknown grep option %s", arg)
 		}
-		if a.Has(key) {
+		takes := !f.Switch
+		if a.Has(key) && !cmd.Repeatable(key) {
 			return a, fmt.Errorf("duplicate grep option %s", arg)
 		}
 		value := "true"
@@ -72,7 +61,7 @@ func parseSearchArgs(argv []string, a Args) (Args, error) {
 		} else if len(parts) == 2 {
 			return a, fmt.Errorf("option takes no value")
 		}
-		a.Values[key] = []string{value}
+		a.Values[key] = append(a.Values[key], value)
 	}
 	if len(a.Positionals) != 1 || a.Positionals[0] == "" || !utf8.ValidString(a.Positionals[0]) {
 		return a, fmt.Errorf("grep requires one nonempty UTF-8 literal pattern")

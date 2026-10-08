@@ -2,30 +2,14 @@ package cli
 
 import (
 	"fmt"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"net/url"
 	"strings"
 )
 
-var commonQueryFlags = []string{"id", "query", "created-after", "created-before", "updated-after", "updated-before"}
-
-func queryFlags(resource string) []string {
-	out := append([]string{}, commonQueryFlags...)
-	switch resource {
-	case "projects":
-		out = append(out, "title", "repository-ref")
-	case "issues":
-		out = append(out, "title", "parent", "state", "labels-all", "labels-any", "labels-none", "assignee", "blocked", "claimed", "owner-client-id", "milestone")
-	case "milestones":
-		out = append(out, "title")
-	case "comments":
-		out = append(out, "author")
-	}
-	return out
-}
-func querySet(k string) bool {
-	return k == "id" || k == "repository-ref" || k == "labels-all" || k == "labels-any" || k == "labels-none"
-}
+// queryValue adds one list filter to a typed query; accumulating filters
+// (repeatable in the grammar) become arrays.
 func (a *App) queryValue(q map[string]any, k string, vs []string, project string) error {
 	key := strings.ReplaceAll(k, "-", "_")
 	if k == "milestone" {
@@ -34,7 +18,7 @@ func (a *App) queryValue(q map[string]any, k string, vs []string, project string
 	if k == "query" {
 		key = "q" // the service's query field keeps its short wire name
 	}
-	if querySet(k) {
+	if f, _ := grammar.Find(a.Args.Command, "list").Flag(k); f.Repeat == nwcli.Many {
 		q[key] = vs
 		return nil
 	}

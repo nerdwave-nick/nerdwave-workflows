@@ -120,7 +120,9 @@ func commandHelpAlias(root *cobra.Command, args []string) []string {
 			break
 		}
 		if strings.HasPrefix(a, "-") {
-			a = expandShorthand(a)
+			if node := grammar.Find(strings.Fields(c.CommandPath())[1:]...); node != nil {
+				a = node.ExpandShort(a)
+			}
 			name := strings.TrimPrefix(strings.SplitN(a, "=", 2)[0], "--")
 			flag := c.Flags().Lookup(name)
 			if flag == nil {

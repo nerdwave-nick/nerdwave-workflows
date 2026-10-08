@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 )
 
 type Args struct {
@@ -23,16 +25,15 @@ func (a Args) One(key string) string {
 }
 func (a Args) Has(key string) bool { _, ok := a.Values[key]; return ok }
 
-// expandShorthand rewrites -q, -q=TEXT and -qTEXT (pflag's shorthand forms) to
-// --query. Call it only where a flag may appear: a flag value stays literal.
-func expandShorthand(v string) string {
-	if !strings.HasPrefix(v, "-q") {
-		return v
+// commandGrammar returns the grammar of the parsed command. Unknown commands get
+// the global flags only, so that dispatch reports them.
+func commandGrammar(a Args) *nwcli.Command {
+	for _, path := range [][]string{{a.Command, a.Verb}, {a.Command}} {
+		if c := grammar.Find(path...); c != nil && len(c.Commands) == 0 && path[len(path)-1] != "" {
+			return c
+		}
 	}
-	if rest := v[2:]; rest != "" {
-		return "--query=" + strings.TrimPrefix(rest, "=")
-	}
-	return "--query"
+	return &nwcli.Command{Flags: flags(globals)}
 }
 
 // Parse keeps global flags separate from resource-specific semantics. Resource
@@ -91,6 +92,7 @@ func parseArgs(argv []string) (Args, error) {
 	if a.Command == "projects" {
 		return parseProjectArgs(argv, a)
 	}
+	cmd := commandGrammar(a)
 	allowed := allowedFlags(a)
 	seenCommand, seenVerb := false, false
 	for i := 0; i < len(argv); i++ {
@@ -99,7 +101,10 @@ func parseArgs(argv []string) (Args, error) {
 			a.Positionals = append(a.Positionals, argv[i+1:]...)
 			break
 		}
-		v = expandShorthand(v)
+		v = cmd.ExpandShort(v)
+		if len(v) > 1 && v[0] == '-' && v[1] != '-' {
+			return a, fmt.Errorf("unknown flag %s", v)
+		}
 		if !strings.HasPrefix(v, "--") {
 			if !seenCommand && v == a.Command {
 				seenCommand = true
@@ -118,7 +123,7 @@ func parseArgs(argv []string) (Args, error) {
 		if !ok {
 			return a, fmt.Errorf("unknown flag --%s", k)
 		}
-		if a.Has(k) {
+		if a.Has(k) && !cmd.Repeatable(k) {
 			return a, fmt.Errorf("duplicate flag --%s", k)
 		}
 		value := "true"
@@ -135,7 +140,7 @@ func parseArgs(argv []string) (Args, error) {
 		} else if len(parts) == 2 {
 			return a, fmt.Errorf("--%s does not take a value", k)
 		}
-		a.Values[k] = []string{value}
+		a.Values[k] = append(a.Values[k], value)
 	}
 	if f := a.One("format"); a.Has("format") && !validOutputFormat(f) {
 		return a, fmt.Errorf("--format must be cli, markdown or json")
@@ -151,50 +156,12 @@ func parseArgs(argv []string) (Args, error) {
 func globalValue(k string) bool {
 	return k == "--session" || k == "--endpoint" || k == "--format" || k == "--timeout"
 }
+
+// allowedFlags maps each flag of the parsed command to whether it takes a value.
 func allowedFlags(a Args) map[string]bool {
-	m := map[string]bool{"session": true, "endpoint": true, "format": true, "timeout": true}
-	switch a.Command {
-	case "transactions":
-		if a.Verb == "status" {
-			m["file"] = true
-		}
-	case "claims":
-		switch a.Verb {
-		case "list":
-			for _, k := range []string{"owner-client-id", "issue-id", "sort", "direction", "limit", "cursor", "file"} {
-				m[k] = true
-			}
-			m["all"] = false
-		case "acquire":
-			m["force"] = false
-			m["for"] = true
-			m["until"] = true
-			m["project"] = true
-		case "renew":
-			m["all"] = false
-			m["for"] = true
-			m["until"] = true
-			m["project"] = true
-		case "release":
-			m["all"] = false
-			m["project"] = true
-		case "get":
-			m["project"] = true
-		}
-	case "connect":
-		m["session-id-only"] = false
-		for _, k := range []string{"output-format", "client-id", "actor-name", "actor-kind", "project", "runtime-vendor", "runtime-session-id"} {
-			m[k] = true
-		}
-	case "session":
-		for _, k := range []string{"project", "output-format", "actor-name", "actor-kind", "runtime-vendor", "runtime-session-id"} {
-			m[k] = a.Verb == "set"
-		}
-		if a.Verb == "get" {
-			for _, k := range []string{"session-id", "service-id", "status", "revision"} {
-				m[k] = false
-			}
-		}
+	m := map[string]bool{}
+	for _, f := range commandGrammar(a).Flags {
+		m[f.Name] = !f.Switch
 	}
 	return m
 }

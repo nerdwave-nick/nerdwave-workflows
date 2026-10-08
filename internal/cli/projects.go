@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"io"
 	"net/url"
@@ -16,29 +17,8 @@ func parseProjectArgs(argv []string, a Args) (Args, error) {
 	seenCommand, seenVerb := false, false
 	group := map[string][]string{}
 	a.Groups = append(a.Groups, group)
-	global := map[string]bool{"session": true, "endpoint": true, "format": true, "timeout": true, "project": true}
-	allowed := map[string]bool{}
-	switch a.Verb {
-	case "create":
-		for _, k := range []string{"project-title", "content", "content-file", "repository", "file"} {
-			allowed[k] = true
-		}
-	case "update":
-		for _, k := range []string{"project-id", "title", "content", "content-file", "add-repository", "remove-repository", "clear", "revision", "file"} {
-			allowed[k] = true
-		}
-	case "get":
-	case "list":
-		for _, k := range append([]string{"sort", "direction", "limit", "cursor", "file"}, queryFlags("projects")...) {
-			allowed[k] = true
-		}
-		allowed["all"] = false
-	case "history":
-		allowed["request-hash"] = true
-		allowed["limit"] = true
-		allowed["cursor"] = true
-		allowed["all"] = false
-	default:
+	cmd := grammar.Find("projects", a.Verb)
+	if a.Verb == "" || cmd == nil {
 		return a, fmt.Errorf("expected projects create, get, list, update, or history")
 	}
 	for i := 0; i < len(argv); i++ {
@@ -47,7 +27,10 @@ func parseProjectArgs(argv []string, a Args) (Args, error) {
 			a.Positionals = append(a.Positionals, argv[i+1:]...)
 			break
 		}
-		v = expandShorthand(v)
+		v = cmd.ExpandShort(v)
+		if len(v) > 1 && v[0] == '-' && v[1] != '-' {
+			return a, fmt.Errorf("unknown flag %s", v)
+		}
 		if !strings.HasPrefix(v, "--") {
 			if !seenCommand && v == "projects" {
 				seenCommand = true
@@ -62,11 +45,8 @@ func parseProjectArgs(argv []string, a Args) (Args, error) {
 		}
 		parts := strings.SplitN(strings.TrimPrefix(v, "--"), "=", 2)
 		k := parts[0]
-		valueNeeded, ok := allowed[k]
-		if global[k] {
-			valueNeeded = true
-			ok = true
-		}
+		f, owner, ok := cmd.Lookup(k)
+		valueNeeded := !f.Switch
 		if !ok {
 			return a, fmt.Errorf("unknown flag --%s", k)
 		}
@@ -85,15 +65,14 @@ func parseProjectArgs(argv []string, a Args) (Args, error) {
 			return a, fmt.Errorf("--%s takes no value", k)
 		}
 		dst := a.Values
-		if !global[k] && k != "file" {
-			if k == "project-title" || k == "project-id" {
+		if owner != nil || cmd.StartsItem(k) || !cmd.HasItems() && !invocationFlags[k] {
+			if cmd.StartsItem(k) {
 				group = map[string][]string{}
 				a.Groups = append(a.Groups, group)
 			}
 			dst = group
 		}
-		repeat := querySet(k) || k == "repository" || k == "add-repository" || k == "remove-repository" || k == "clear"
-		if len(dst[k]) > 0 && !repeat {
+		if len(dst[k]) > 0 && f.Repeat != nwcli.Many {
 			return a, fmt.Errorf("duplicate flag --%s", k)
 		}
 		dst[k] = append(dst[k], value)
