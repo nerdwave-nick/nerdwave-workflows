@@ -64,6 +64,9 @@ type Operands struct {
 	Usage string // e.g. "REF..." or "[REF]"; empty when Max is 0
 	Max   int    // maximum count, or Unlimited
 	Value Value
+	// Conflicts names flags that replace the operands, such as --all; once
+	// one is given, no operands are offered.
+	Conflicts []string
 }
 
 // Command is a node of a command tree. A command with subcommands is a group.

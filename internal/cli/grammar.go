@@ -97,6 +97,13 @@ func refs(usage, completer string) nwcli.Operands {
 	return nwcli.Operands{Usage: usage, Max: max, Value: dynamic(completer)}
 }
 
+// allOrRefs are claim targets, which --all replaces.
+func allOrRefs() nwcli.Operands {
+	o := refs("[REF...]", "issues")
+	o.Conflicts = []string{"all"}
+	return o
+}
+
 const globals = "session endpoint format timeout"
 
 var free = nwcli.Value{}
@@ -118,8 +125,8 @@ func newGrammar() *nwcli.Command {
 			&nwcli.Command{Name: "acquire", Operands: refs("REF...", "issues"), Flags: join(flags("for until project"), switches("force"))},
 			&nwcli.Command{Name: "get", Operands: refs("REF...", "issues"), Flags: flags("project")},
 			&nwcli.Command{Name: "list", Flags: join(flags("owner-client-id issue-id direction limit cursor file"), sortFlag("created-at"), switches("all"))},
-			&nwcli.Command{Name: "renew", Operands: refs("[REF...]", "issues"), Flags: join(flags("for until project"), switches("all"))},
-			&nwcli.Command{Name: "release", Operands: refs("[REF...]", "issues"), Flags: join(flags("project"), switches("all"))},
+			&nwcli.Command{Name: "renew", Operands: allOrRefs(), Flags: join(flags("for until project"), switches("all"))},
+			&nwcli.Command{Name: "release", Operands: allOrRefs(), Flags: join(flags("project"), switches("all"))},
 		),
 		group("transactions", &nwcli.Command{Name: "status", Flags: flags("file")}),
 		&nwcli.Command{Name: "grep", Operands: nwcli.Operands{Usage: "PATTERN", Max: 1},

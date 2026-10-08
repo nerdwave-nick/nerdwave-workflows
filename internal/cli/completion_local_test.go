@@ -141,3 +141,32 @@ func contains(values []string, want string) bool {
 	}
 	return false
 }
+
+func TestCompletionFollowsItemsExactly(t *testing.T) {
+	offlineCompletion(t)
+	for _, tc := range []struct {
+		args          []string
+		offered, gone []string
+	}{
+		{[]string{"issues", "create", "--issue", "A", "--content", "x", ""}, []string{"--issue", "--label"}, []string{"--content", "--content-file"}[:1]},
+		{[]string{"issues", "create", "--issue", "A", "--content", "x", "--issue", "B", ""}, []string{"--content"}, nil},
+		{[]string{"issues", "create", "--issue", "A", "--label", "a", ""}, []string{"--label"}, nil},
+		{[]string{"issues", "list", "--labels-any", "a", "--limit", "5", ""}, []string{"--labels-any"}, []string{"--limit"}},
+		{[]string{"issues", "link", "--from", "A", "--to", "B", "--relation", "blocks", ""}, []string{"--from", "--to"}, []string{"--relation"}},
+	} {
+		values, directive := completion(t, tc.args...)
+		for _, want := range tc.offered {
+			if !contains(values, want) {
+				t.Errorf("%v: %s not offered: %v", tc.args, want, values)
+			}
+		}
+		for _, absent := range tc.gone {
+			if contains(values, absent) {
+				t.Errorf("%v: %s offered again: %v", tc.args, absent, values)
+			}
+		}
+		if directive != ":36" {
+			t.Errorf("%v: directive %s", tc.args, directive)
+		}
+	}
+}

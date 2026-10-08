@@ -11,22 +11,21 @@ import (
 	"unicode"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 const completionTimeout = time.Second
 
 // Completion uses its own read-only path, never runTracker: no mapping lock,
 // registration, preference cache, pending request or reconnect is needed.
-func completeRecords(kind string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
-	return func(cmd *cobra.Command, args []string, prefix string) ([]string, cobra.ShellCompDirective) {
-		items, err := fetchCompletions(cmd, kind, prefix)
+func completeRecords(kind string) nwcli.Completer {
+	return func(ctx nwcli.Context) ([]nwcli.Candidate, nwcli.Directive) {
+		items, err := fetchCompletions(ctx, kind)
 		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
+			return nil, nwcli.NoFiles
 		}
-		out := []string{}
+		out := []nwcli.Candidate{}
 		for _, item := range items {
 			if item.Value == "" || strings.ContainsFunc(item.Value, unicode.IsControl) {
 				continue
@@ -39,15 +38,16 @@ func completeRecords(kind string) func(*cobra.Command, []string, string) ([]stri
 				}
 				return r
 			}, description)
-			out = append(out, item.Value+"\t"+strings.Join(strings.Fields(description), " "))
+			out = append(out, nwcli.Candidate{Value: item.Value, Description: strings.Join(strings.Fields(description), " ")})
 		}
-		return out, cobra.ShellCompDirectiveNoFileComp
+		return out, nwcli.NoFiles
 	}
 }
 
-func fetchCompletions(cmd *cobra.Command, kind, prefix string) ([]protocol.Completion, error) {
+func fetchCompletions(c nwcli.Context, kind string) ([]protocol.Completion, error) {
+	prefix := c.Prefix
 	one := func(name string) (string, bool) {
-		values := flagValues(cmd, name)
+		values := c.Flags[name]
 		if len(values) == 0 {
 			return "", false
 		}
@@ -79,7 +79,7 @@ func fetchCompletions(cmd *cobra.Command, kind, prefix string) ([]protocol.Compl
 			q.Set("project", project)
 		}
 	}
-	ctx, cancel := context.WithTimeout(cmd.Context(), completionTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), completionTimeout)
 	defer cancel()
 	app := &App{Endpoint: endpoint, Mapping: mapping, HTTP: &http.Client{Timeout: completionTimeout}, Context: ctx, Out: io.Discard, Err: io.Discard}
 	var result protocol.Completions
@@ -92,14 +92,4 @@ func fetchCompletions(cmd *cobra.Command, kind, prefix string) ([]protocol.Compl
 		return nil, protocol.E(409, "wrong_service", "invalid or unexpected completion service")
 	}
 	return result.Items, nil
-}
-
-// flagValues reads a flag's values from cobra's parse during completion. The
-// slice interface preserves presence and exact values, unlike GetStringArray.
-func flagValues(c *cobra.Command, name string) []string {
-	f := c.Flags().Lookup(name)
-	if f == nil || !f.Changed {
-		return nil
-	}
-	return f.Value.(pflag.SliceValue).GetSlice()
 }
