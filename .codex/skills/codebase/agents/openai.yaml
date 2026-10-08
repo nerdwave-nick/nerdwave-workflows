@@ -1,0 +1,3 @@
+interface:
+  display_name: "Codebase"
+  short_description: "Design useful interfaces and test boundaries"

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Orchestrate"
+  short_description: "Coordinate authorized implementation tickets"
+policy:
+  allow_implicit_invocation: true
