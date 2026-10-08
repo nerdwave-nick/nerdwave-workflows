@@ -1,0 +1,28 @@
+Run lit-server in the foreground. All flags are optional; no installation or background
+service is created. Stop with Ctrl-C. The data directory is initialized under an
+exclusive lock, and an occupied listen address fails without selecting another port.
+
+Configuration precedence: flags > environment > JSON config > defaults.
+The config file defaults to ${XDG_CONFIG_HOME:-$HOME/.config}/lit-server/config.json.
+LIT_CONFIG_FILE or --config explicitly selects a file that must exist.
+Default data directory: ${XDG_DATA_HOME:-$HOME/.local/share}/lit-server.
+Default listener: 127.0.0.1:7411. Listen requires an explicit loopback IP address
+(127.0.0.1 or ::1) and a port from 0 to 65535; port 0 asks the OS for a free port.
+Existing JSON config must have schema_version: 1. Changes require a restart.
+Under systemd socket activation, the single inherited loopback socket replaces
+the listen address.
+
+Usage:
+  lit-server [flags]
+
+Examples:
+  lit-server
+  lit-server --data-dir /tmp/lit-poc --listen 127.0.0.1:7411
+  lit-server --config /path/to/config.json
+
+Flags:
+      --config FILE          Optional JSON config FILE (or LIT_CONFIG_FILE)
+      --data-dir DIRECTORY   Optional authoritative data DIRECTORY (or LIT_DATA_DIR)
+  -h, --help                 help for lit-server
+      --listen IP:PORT       Optional loopback IP:PORT (or LIT_LISTEN; default 127.0.0.1:7411)
+  -v, --version              version for lit-server

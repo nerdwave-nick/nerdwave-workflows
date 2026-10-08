@@ -54,7 +54,7 @@ type Route struct {
 
 func (c *Command) Route(argv []string) Route {
 	r := Route{words: map[int]bool{}}
-	node, current, inPath := c, c.Resolve(), true
+	node, current, inPath, topic := c, c.Resolve(), true, false
 	for i := 0; i < len(argv); i++ {
 		a := argv[i]
 		if a == "--" {
@@ -83,11 +83,11 @@ func (c *Command) Route(argv []string) Route {
 			node, r.Path, r.words[i] = child, append(r.Path, a), true
 			current = c.Resolve(r.Path...)
 		case a == "help" && node == c && len(r.Path) == 0 && !r.Help:
-			r.Help, r.words[i] = true, true // the help command: the names after it select the topic
+			r.Help, r.words[i], topic = true, true, true // the help command: the names after it select the topic
 		case a == "help" && node != c && !(node.Operands.Max != 0 && node.Operands.Value.Kind == Free):
 			r.Help, r.words[i], inPath = true, true, false
 		default:
-			if len(node.Commands) > 0 && r.Unknown == "" {
+			if (len(node.Commands) > 0 || topic) && r.Unknown == "" {
 				r.Unknown = a
 			}
 			inPath = false
@@ -169,11 +169,11 @@ func (c *Command) Parse(argv []string) (*Parsed, error) {
 	p := &Parsed{Path: r.Path, Flags: map[string][]string{}, Help: r.Help}
 	where := strings.Join(append([]string{c.Name}, r.Path...), " ")
 	fail := func(kind ErrorKind, arg string) (*Parsed, error) { return p, &ParseError{kind, where, arg} }
-	if r.Help {
-		return p, nil
-	}
 	if r.Unknown != "" {
 		return fail(UnknownCommand, r.Unknown)
+	}
+	if r.Help {
+		return p, nil
 	}
 	node := c.Resolve(r.Path...)
 	if len(node.Commands) > 0 {

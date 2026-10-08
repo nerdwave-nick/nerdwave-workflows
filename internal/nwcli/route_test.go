@@ -106,6 +106,28 @@ func TestRouteFindsPathAndHelp(t *testing.T) {
 	}
 }
 
+func TestRouteHelpTopicsMustExistEvenWithoutSubcommands(t *testing.T) {
+	server := &Command{Name: "server", Flags: []Flag{{Name: "listen", Usage: "`ADDR`"}}}
+	for _, tc := range []struct {
+		argv    []string
+		help    bool
+		unknown string
+	}{
+		{[]string{"help"}, true, ""},
+		{[]string{"--listen", "x", "help"}, true, ""},
+		{[]string{"--listen", "help"}, false, ""}, // a flag value
+		{[]string{"help", "extra"}, true, "extra"},
+		{[]string{"serve"}, false, ""}, // an operand, rejected by Parse
+	} {
+		if r := server.Route(tc.argv); r.Help != tc.help || r.Unknown != tc.unknown {
+			t.Errorf("%v: help %v unknown %q", tc.argv, r.Help, r.Unknown)
+		}
+	}
+	if _, err := server.Parse([]string{"serve"}); err == nil || err.Error() != `unexpected argument "serve" for server` {
+		t.Errorf("operand: %v", err)
+	}
+}
+
 func TestParseCollectsFlagsItemsAndOperands(t *testing.T) {
 	p, err := app().Parse([]string{"--session", "s", "items", "create", "--note", "n0", "--item", "a", "--tag", "x", "--tag", "y", "--item", "b", "--note", "n", "--project", "p"})
 	if err != nil {
@@ -136,6 +158,8 @@ func TestParseErrors(t *testing.T) {
 	}{
 		{[]string{"items"}, MissingCommand, "a subcommand is required for app items; run 'app items --help'"},
 		{[]string{"items", "wat"}, UnknownCommand, `unknown command "wat" for app items; run 'app items --help'`},
+		{[]string{"help", "wat"}, UnknownCommand, `unknown command "wat" for app; run 'app --help'`},
+		{[]string{"items", "wat", "--help"}, UnknownCommand, `unknown command "wat" for app items; run 'app items --help'`},
 		{[]string{"items", "get", "--bogus"}, UnknownFlag, "unknown flag --bogus"},
 		{[]string{"items", "get", "-z"}, UnknownFlag, "unknown flag -z"},
 		{[]string{"setup", "--session", "s"}, NotApplicable, "--session does not apply to app setup"},

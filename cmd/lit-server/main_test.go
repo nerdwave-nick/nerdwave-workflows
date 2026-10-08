@@ -68,3 +68,16 @@ func TestServiceHelpTokenAsFlagValue(t *testing.T) {
 		}
 	}
 }
+
+func TestServiceHelpPage(t *testing.T) {
+	want, err := os.ReadFile(filepath.Join("testdata", "help.golden"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"--help"}, {"-h"}, {"help"}} {
+		var out, stderr bytes.Buffer
+		if code := runCLI(args, &out, &stderr); code != 0 || out.String() != string(want) {
+			t.Errorf("%v: %d\n%s", args, code, &out)
+		}
+	}
+}

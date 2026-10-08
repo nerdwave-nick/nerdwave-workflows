@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
-func runCLI(args []string, out, errOut io.Writer) int {
-	code := 0
-	root := &cobra.Command{Use: "lit-server", SilenceErrors: true, SilenceUsage: true, Version: protocol.ReleaseVersion, CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true}, Short: "Run lit-server in the foreground on a loopback address", Long: `Run lit-server in the foreground. All flags are optional; no installation or background
+// serverCommand is lit-server's command line: optional flags, no operands and
+// no subcommands.
+var serverCommand = &nwcli.Command{
+	Name:    "lit-server",
+	Summary: "Run lit-server in the foreground on a loopback address",
+	Description: `Run lit-server in the foreground. All flags are optional; no installation or background
 service is created. Stop with Ctrl-C. The data directory is initialized under an
 exclusive lock, and an occupied listen address fails without selecting another port.
 
@@ -24,45 +26,41 @@ Default listener: 127.0.0.1:7411. Listen requires an explicit loopback IP addres
 (127.0.0.1 or ::1) and a port from 0 to 65535; port 0 asks the OS for a free port.
 Existing JSON config must have schema_version: 1. Changes require a restart.
 Under systemd socket activation, the single inherited loopback socket replaces
-the listen address.`, Example: "  lit-server\n  lit-server --data-dir /tmp/lit-poc --listen 127.0.0.1:7411\n  lit-server --config /path/to/config.json", Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 1 && args[0] == "help" && cmd.ArgsLenAtDash() < 0 {
-			return nil
-		}
-		return cobra.NoArgs(cmd, args)
-	}}
-	root.Flags().StringArray("config", nil, "Optional JSON config `FILE` (or LIT_CONFIG_FILE)")
-	root.Flags().StringArray("data-dir", nil, "Optional authoritative data `DIRECTORY` (or LIT_DATA_DIR)")
-	root.Flags().StringArray("listen", nil, "Optional loopback `IP:PORT` (or LIT_LISTEN; default 127.0.0.1:7411)")
-	root.RunE = func(cmd *cobra.Command, args []string) error {
-		if len(args) == 1 {
-			return cmd.Help()
-		}
-		normalized := []string{}
-		for _, name := range []string{"config", "data-dir", "listen"} {
-			f := cmd.Flags().Lookup(name)
-			if !f.Changed {
-				continue
-			}
-			values := f.Value.(pflag.SliceValue).GetSlice()
-			if len(values) != 1 {
-				return fmt.Errorf("duplicate flag --%s", name)
-			}
-			normalized = append(normalized, "--"+name, values[0])
-		}
-		config, err := service.LoadConfig(normalized)
-		if err != nil {
-			return err
-		}
-		code = runService(config, errOut)
-		return nil
+the listen address.`,
+	Example: "  lit-server\n  lit-server --data-dir /tmp/lit-poc --listen 127.0.0.1:7411\n  lit-server --config /path/to/config.json",
+	Flags: []nwcli.Flag{
+		{Name: "config", Usage: "Optional JSON config `FILE` (or LIT_CONFIG_FILE)", Value: nwcli.Value{Kind: nwcli.Path}},
+		{Name: "data-dir", Usage: "Optional authoritative data `DIRECTORY` (or LIT_DATA_DIR)", Value: nwcli.Value{Kind: nwcli.Dir}},
+		{Name: "listen", Usage: "Optional loopback `IP:PORT` (or LIT_LISTEN; default 127.0.0.1:7411)"},
+		{Name: "version", Short: "v", Switch: true, Usage: "version for lit-server"},
+	},
+}
+
+// runCLI parses the command line before any configuration is read, so help,
+// version and argument errors never touch the data directory.
+func runCLI(args []string, out, errOut io.Writer) int {
+	p, err := serverCommand.Parse(args)
+	switch {
+	case err != nil:
+		fmt.Fprintln(errOut, err)
+		return 2
+	case p.Help:
+		serverCommand.WriteHelp(out)
+		return 0
+	case len(p.Flags["version"]) > 0:
+		fmt.Fprintln(out, protocol.ReleaseVersion)
+		return 0
 	}
-	root.SetOut(out)
-	root.SetErr(errOut)
-	root.SetVersionTemplate("{{.Version}}\n")
-	root.SetArgs(args)
-	if err := root.Execute(); err != nil {
+	normalized := []string{}
+	for _, name := range []string{"config", "data-dir", "listen"} {
+		for _, v := range p.Flags[name] {
+			normalized = append(normalized, "--"+name, v)
+		}
+	}
+	config, err := service.LoadConfig(normalized)
+	if err != nil {
 		fmt.Fprintln(errOut, err)
 		return 2
 	}
-	return code
+	return runService(config, errOut)
 }
