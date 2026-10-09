@@ -1,6 +1,11 @@
-# nerdwave-workflows
+# lit
 
 The home for my coding agent workflows, local tooling, and customized skills.
+
+## Goals
+
+- Simple and clear workflow for implementation tasks, supported by tooling for research, prototyping, testing, traceability
+- NOT a replacement for a fully featured issue tracker like Jira, this is only for the agent synchronization and details of implementation, not to replace feature planning in general
 
 ## Components
 
